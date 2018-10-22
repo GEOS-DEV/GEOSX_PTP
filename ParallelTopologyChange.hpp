@@ -14,7 +14,7 @@ namespace geosx
 {
 class MeshLevel;
 class NeighborCommunicator;
-class ModifiedObjectLists;
+struct ModifiedObjectLists;
 
 class ParallelTopologyChange
 {
