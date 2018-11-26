@@ -26,22 +26,39 @@ public:
                                         array1d<NeighborCommunicator> & neighbors,
                                         ModifiedObjectLists const & modifiedObjects );
 
-  static void PackNewAndModifiedObjects( NeighborCommunicator * const neighbor,
-                                         MeshLevel * const meshLevel,
-                                         array1d<localIndex> const & newNodePackList,
-                                         array1d<localIndex> const & newEdgePackList,
-                                         array1d<localIndex> const & newFacePackList,
-                                         array1d<localIndex> const & modNodePackList,
-                                         array1d<localIndex> const & modEdgePackList,
-                                         array1d<localIndex> const & modFacePackList,
-                                         array1d< array1d< ReferenceWrapper< localIndex_array > > > const & modifiedElements,
-                                         int const commID );
+//  static void PackNewObjectsToOwningRank( NeighborCommunicator * const neighbor,
+//                                          MeshLevel const * const meshLevel,
+//                                          ModifiedObjectLists const & modifiedObjects,
+//                                          int const commID );
+//
+//  static void PackNewObjectsToGhostRanks( NeighborCommunicator * const neighbor,
+//                                          MeshLevel const * const meshLevel,
+//                                          ModifiedObjectLists const & modifiedObjects,
+//                                          int const commID );
+//
+//  static void PackModifiedObjectsToOwningRank( NeighborCommunicator * const neighbor,
+//                                               MeshLevel const * const meshLevel,
+//                                               ModifiedObjectLists const & modifiedObjects,
+//                                               int const commID );
+//
+//  static void PackModifiedObjectsToGhostRanks( NeighborCommunicator * const neighbor,
+//                                               MeshLevel const * const meshLevel,
+//                                               ModifiedObjectLists const & modifiedObjects,
+//                                               int const commID );
+
+
+
+
+  static void PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
+                                                      MeshLevel * const meshLevel,
+                                                      ModifiedObjectLists const & modifiedObjects,
+                                                      int const commID );
 
   static void UnpackNewAndModifiedObjects( NeighborCommunicator * const neighbor,
                                            MeshLevel * const meshLevel,
                                            int const commID );
 
-  static void PackNewModToGhosts( NeighborCommunicator * const neighbor,
+  static void PackNewModifiedObjectsToGhosts( NeighborCommunicator * const neighbor,
                                   int commID,
                                   MeshLevel * const mesh,
                                   set<localIndex> const & allNewNodes,

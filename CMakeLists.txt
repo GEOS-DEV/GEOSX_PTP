@@ -9,8 +9,8 @@ set(componentHeaders "ParallelTopologyChange.hpp" )
 
 set(componentSources "ParallelTopologyChange.cpp" )
 
-blt_add_library( NAME             hydroFracture
+blt_add_library( NAME             GEOSX_PTP
                  SOURCES          ${componentSources}
                  HEADERS          ${componentHeaders}
-                 DEPENDS_ON       geosx_core
+                 DEPENDS_ON       mesh
                )
