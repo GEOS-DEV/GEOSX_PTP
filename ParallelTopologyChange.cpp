@@ -277,7 +277,9 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     UnpackNewModToGhosts( &neighbor, commData2.commID, mesh );
   }
 
-
+  nodeManager->FixUpDownMaps();
+  edgeManager->FixUpDownMaps();
+  faceManager->FixUpDownMaps();
   for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
   {
     ElementRegion * const elemRegion = elemManager->GetRegion(er);
@@ -544,7 +546,7 @@ void ParallelTopologyChange::UnpackNewAndModifiedObjects( NeighborCommunicator *
 
 static void FilterNewObjectsForPackToGhosts( set<localIndex> const & objectList,
                                              localIndex_array const & parentIndices,
-                                             localIndex_array const & ghostsToSend,
+                                             localIndex_array & ghostsToSend,
                                              localIndex_array & objectsToSend )
 {
   for( auto const index : objectList )
@@ -558,6 +560,10 @@ static void FilterNewObjectsForPackToGhosts( set<localIndex> const & objectList,
         break;
       }
     }
+  }
+  for( localIndex a=0 ; a<objectsToSend.size() ; ++a )
+  {
+    ghostsToSend.push_back( objectsToSend[a] );
   }
 }
 
@@ -604,25 +610,25 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
   ElementRegionManager::ElementReferenceAccessor<localIndex_array> modElemsToSend;
   array1d< array1d <localIndex_array> > elemsToSendData;
 
-  ManagedGroup * const
+  ManagedGroup *
    nodeNeighborData = nodeManager->GetGroup( nodeManager->groupKeys.neighborData )->
                       GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
-   ManagedGroup * const
+   ManagedGroup *
    edgeNeighborData = edgeManager->GetGroup( edgeManager->groupKeys.neighborData )->
                       GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
-   ManagedGroup * const
+   ManagedGroup *
    faceNeighborData = faceManager->GetGroup( faceManager->groupKeys.neighborData )->
                       GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
-   localIndex_array const &
+   localIndex_array &
    nodeGhostsToSend = nodeNeighborData->getReference<localIndex_array>( nodeManager->viewKeys.ghostsToSend );
 
-   localIndex_array const &
+   localIndex_array &
    edgeGhostsToSend = edgeNeighborData->getReference<localIndex_array>( nodeManager->viewKeys.ghostsToSend );
 
-   localIndex_array const &
+   localIndex_array &
    faceGhostsToSend = faceNeighborData->getReference<localIndex_array>( faceManager->viewKeys.ghostsToSend );
 
    ElementRegionManager::ElementReferenceAccessor<localIndex_array>
@@ -745,6 +751,32 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
   FaceManager * const faceManager = mesh->getFaceManager();
   ElementRegionManager * const elemManager = mesh->getElemManager();
 
+
+  ManagedGroup *
+   nodeNeighborData = nodeManager->GetGroup( nodeManager->groupKeys.neighborData )->
+                      GetGroup( std::to_string( neighbor->NeighborRank() ) );
+
+   ManagedGroup *
+   edgeNeighborData = edgeManager->GetGroup( edgeManager->groupKeys.neighborData )->
+                      GetGroup( std::to_string( neighbor->NeighborRank() ) );
+
+   ManagedGroup *
+   faceNeighborData = faceManager->GetGroup( faceManager->groupKeys.neighborData )->
+                      GetGroup( std::to_string( neighbor->NeighborRank() ) );
+
+   localIndex_array &
+   nodeGhostsToRecv = nodeNeighborData->getReference<localIndex_array>( nodeManager->viewKeys.ghostsToReceive );
+
+   localIndex_array &
+   edgeGhostsToRecv = edgeNeighborData->getReference<localIndex_array>( nodeManager->viewKeys.ghostsToReceive );
+
+   localIndex_array &
+   faceGhostsToRecv = faceNeighborData->getReference<localIndex_array>( faceManager->viewKeys.ghostsToReceive );
+
+
+
+
+
   buffer_type const & receiveBuffer = neighbor->ReceiveBuffer( commID );
   buffer_unit_type const * receiveBufferPtr = receiveBuffer.data();
 
@@ -789,6 +821,21 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
   unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, modGhostFaces );
   unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, modGhostElems );
 
+
+  for( localIndex a=0 ; a<newGhostNodes.size() ; ++a )
+  {
+    nodeGhostsToRecv.push_back(newGhostNodes[a]);
+  }
+
+  for( localIndex a=0 ; a<newGhostEdges.size() ; ++a )
+  {
+    edgeGhostsToRecv.push_back(newGhostEdges[a]);
+  }
+
+  for( localIndex a=0 ; a<newGhostFaces.size() ; ++a )
+  {
+    faceGhostsToRecv.push_back(newGhostFaces[a]);
+  }
 }
 
 
