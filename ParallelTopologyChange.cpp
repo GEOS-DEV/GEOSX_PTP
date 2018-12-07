@@ -277,16 +277,16 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     UnpackNewModToGhosts( &neighbor, commData2.commID, mesh );
   }
 
-  nodeManager->FixUpDownMaps();
-  edgeManager->FixUpDownMaps();
-  faceManager->FixUpDownMaps();
+  nodeManager->FixUpDownMaps(false);
+  edgeManager->FixUpDownMaps(false);
+  faceManager->FixUpDownMaps(false);
   for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
   {
     ElementRegion * const elemRegion = elemManager->GetRegion(er);
     for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
     {
       CellBlockSubRegion * const subRegion = elemRegion->GetSubRegion(esr);
-      subRegion->FixUpDownMaps();
+      subRegion->FixUpDownMaps(false);
     }
   }
 
@@ -461,8 +461,6 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   bufferSize += edgeManager.PackSize( {}, modEdgePackListArray, 0 );
   bufferSize += faceManager.PackSize( {}, modFacePackListArray, 0 );
 
-
-  GEOS_LOG_RANK( "bufferSize = "<<bufferSize );
 
   neighbor->resizeSendBuffer( commID, bufferSize );
 
@@ -705,7 +703,6 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
    bufferSize += faceManager->PackUpDownMapsSize( modFacesToSend );
    bufferSize += elemManager->PackUpDownMapsSize( modElemsToSend );
 
-   GEOS_LOG_RANK( "bufferSize = "<<bufferSize );
 
 
    neighbor->resizeSendBuffer( commID, bufferSize );
