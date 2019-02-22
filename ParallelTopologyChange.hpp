@@ -71,7 +71,8 @@ public:
 
   static void UnpackNewModToGhosts( NeighborCommunicator * const neighbor,
                                     int commID,
-                                    MeshLevel * const mesh );
+                                    MeshLevel * const mesh,
+                                    ModifiedObjectLists & receivedObjects );
 
 };
 

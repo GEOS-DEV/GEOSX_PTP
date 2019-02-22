@@ -93,10 +93,20 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
                                       MPI_COMM_GEOSX);
   }
 
+  ModifiedObjectLists receivedObjects;
+  set<localIndex> & allNewNodes      = receivedObjects.newNodes;
+  set<localIndex> & allModifiedNodes = receivedObjects.modifiedNodes;
+  set<localIndex> & allNewEdges      = receivedObjects.newEdges;
+  set<localIndex> & allModifiedEdges = receivedObjects.modifiedEdges;
+  set<localIndex> & allNewFaces      = receivedObjects.newFaces;
+  set<localIndex> & allModifiedFaces = receivedObjects.modifiedFaces;
 
-  set<localIndex> allNewNodes, allModifiedNodes;
-  set<localIndex> allNewEdges, allModifiedEdges;
-  set<localIndex> allNewFaces, allModifiedFaces;
+//  set<localIndex>  allNewNodes ;
+//  set<localIndex>  allModifiedNodes;
+//  set<localIndex>  allNewEdges;
+//  set<localIndex>  allModifiedEdges ;
+//  set<localIndex>  allNewFaces;
+//  set<localIndex>  allModifiedFaces;
 
 
   allNewNodes.insert( modifiedObjects.newNodes.begin(),
@@ -129,7 +139,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     allModifiedElements[er].resize(elemRegion->numSubRegions());
     for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
     {
-      CellBlockSubRegion * const subRegion = elemRegion->GetSubRegion(esr);
+      ElementSubRegionBase * const subRegion = elemRegion->GetSubRegion(esr);
 
       modifiedElements[er][esr].set( modifiedElementsData[er][esr] );
 
@@ -171,18 +181,18 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     unpackedSize += edgeManager->UnpackGlobalMaps( receiveBufferPtr, newLocalEdges, 0 );
     unpackedSize += faceManager->UnpackGlobalMaps( receiveBufferPtr, newLocalFaces, 0 );
 
-    unpackedSize += nodeManager->UnpackUpDownMaps( receiveBufferPtr, newLocalNodes );
-    unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, newLocalEdges );
-    unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, newLocalFaces );
+    unpackedSize += nodeManager->UnpackUpDownMaps( receiveBufferPtr, newLocalNodes, true, true );
+    unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, newLocalEdges, true, true );
+    unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, newLocalFaces, true, true );
 
     unpackedSize += nodeManager->Unpack( receiveBufferPtr, newLocalNodes, 0 );
     unpackedSize += edgeManager->Unpack( receiveBufferPtr, newLocalEdges, 0 );
     unpackedSize += faceManager->Unpack( receiveBufferPtr, newLocalFaces, 0 );
 
-    unpackedSize += nodeManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalNodes );
-    unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalEdges );
-    unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalFaces );
-    unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, modifiedElements );
+    unpackedSize += nodeManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalNodes, false, true );
+    unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalEdges, false, true );
+    unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalFaces, false, true );
+    unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, modifiedElements, true );
 
     unpackedSize += nodeManager->Unpack( receiveBufferPtr, modifiedLocalNodes, 0 );
     unpackedSize += edgeManager->Unpack( receiveBufferPtr, modifiedLocalEdges, 0 );
@@ -274,21 +284,43 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
                  commData2.mpiRecvBufferStatus.data() );
 
     NeighborCommunicator& neighbor = neighbors[neighborIndex];
-    UnpackNewModToGhosts( &neighbor, commData2.commID, mesh );
+    UnpackNewModToGhosts( &neighbor, commData2.commID, mesh, receivedObjects );
   }
 
   nodeManager->FixUpDownMaps(false);
   edgeManager->FixUpDownMaps(false);
   faceManager->FixUpDownMaps(false);
+
+
   for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
   {
     ElementRegion * const elemRegion = elemManager->GetRegion(er);
     for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
     {
-      CellBlockSubRegion * const subRegion = elemRegion->GetSubRegion(esr);
+      ElementSubRegionBase * const subRegion = elemRegion->GetSubRegion(esr);
       subRegion->FixUpDownMaps(false);
     }
   }
+
+  set<localIndex> allTouchedNodes;
+  allTouchedNodes.insert( allNewNodes.begin(), allNewNodes.end() );
+  allTouchedNodes.insert( allModifiedNodes.begin(), allModifiedNodes.end() );
+  nodeManager->depopulateUpMaps( allTouchedNodes,
+                                 edgeManager->nodeList(),
+                                 faceManager->nodeList(),
+                                 *elemManager );
+
+  set<localIndex> allTouchedEdges;
+  allTouchedEdges.insert( allNewEdges.begin(), allNewEdges.end() );
+  allTouchedEdges.insert( allModifiedEdges.begin(), allModifiedEdges.end() );
+  edgeManager->depopulateUpMaps( allTouchedEdges,
+                                 faceManager->edgeList() );
+
+  set<localIndex> allTouchedFaces;
+  allTouchedFaces.insert( allNewFaces.begin(), allNewFaces.end() );
+  allTouchedFaces.insert( allModifiedFaces.begin(), allModifiedFaces.end() );
+  faceManager->depopulateUpMaps( allTouchedFaces,
+                                 *elemManager );
 
 }
 
@@ -311,6 +343,15 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   array1d<integer> const & edgeGhostRank = edgeManager.GhostRank();
   array1d<integer> const & faceGhostRank = faceManager.GhostRank();
 
+  arrayView1d<localIndex> const &
+  parentNodeIndices = nodeManager.getReference<array1d<localIndex>>( nodeManager.viewKeys.parentIndex );
+
+  arrayView1d<localIndex> const &
+  parentEdgeIndices = edgeManager.getReference<array1d<localIndex>>( edgeManager.viewKeys.parentIndex );
+
+  arrayView1d<localIndex> const &
+  parentFaceIndices = faceManager.getReference<array1d<localIndex>>( faceManager.viewKeys.parentIndex );
+
   int const neighborRank = neighbor->NeighborRank();
 
   array1d<localIndex> newNodePackListArray(modifiedObjects.newNodes.size());
@@ -318,7 +359,8 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
     localIndex a=0 ;
     for( auto const index : modifiedObjects.newNodes )
     {
-      if( nodeGhostRank[index] == neighborRank )
+      localIndex const parentNodeIndex = ObjectManagerBase::GetParentRecusive( parentNodeIndices, index );
+      if( nodeGhostRank[parentNodeIndex] == neighborRank )
       {
         newNodePackListArray[a] = index;
         ++a;
@@ -331,7 +373,8 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
     localIndex a=0 ;
     for( auto const index : modifiedObjects.modifiedNodes )
     {
-      if( nodeGhostRank[index] == neighborRank )
+      localIndex const parentNodeIndex = ObjectManagerBase::GetParentRecusive( parentNodeIndices, index );
+      if( nodeGhostRank[parentNodeIndex] == neighborRank )
       {
         modNodePackListArray[a] = index;
         ++a;
@@ -346,7 +389,8 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
     localIndex a=0 ;
     for( auto const index : modifiedObjects.newEdges )
     {
-      if( edgeGhostRank[index] == neighborRank )
+      localIndex const parentIndex = ObjectManagerBase::GetParentRecusive( parentEdgeIndices, index );
+      if( edgeGhostRank[parentIndex] == neighborRank )
       {
         newEdgePackListArray[a] = index;
         ++a;
@@ -359,7 +403,8 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
     localIndex a=0 ;
     for( auto const index : modifiedObjects.modifiedEdges )
     {
-      if( edgeGhostRank[index] == neighborRank )
+      localIndex const parentIndex = ObjectManagerBase::GetParentRecusive( parentEdgeIndices, index );
+      if( edgeGhostRank[parentIndex] == neighborRank )
       {
         modEdgePackListArray[a] = index;
         ++a;
@@ -374,7 +419,8 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
     localIndex a=0 ;
     for( auto const index : modifiedObjects.newFaces )
     {
-      if( faceGhostRank[index] == neighborRank )
+      localIndex const parentIndex = ObjectManagerBase::GetParentRecusive( parentFaceIndices, index );
+      if( faceGhostRank[parentIndex] == neighborRank )
       {
         newFacePackListArray[a] = index;
         ++a;
@@ -387,7 +433,8 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
     localIndex a=0 ;
     for( auto const index : modifiedObjects.modifiedFaces )
     {
-      if( faceGhostRank[index] == neighborRank )
+      localIndex const parentIndex = ObjectManagerBase::GetParentRecusive( parentFaceIndices, index );
+      if( faceGhostRank[parentIndex] == neighborRank )
       {
         modFacePackListArray[a] = index;
         ++a;
@@ -408,7 +455,7 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
     modElemData[er].resize(elemRegion->numSubRegions());
     for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
     {
-      CellBlockSubRegion * const subRegion = elemRegion->GetSubRegion(esr);
+      ElementSubRegionBase * const subRegion = elemRegion->GetSubRegion(esr);
       integer_array const & subRegionGhostRank = subRegion->GhostRank();
       string const & subRegionName = subRegion->getName();
       if( modifiedObjects.modifiedElements.count(subRegionName) > 0 )
@@ -528,10 +575,10 @@ void ParallelTopologyChange::UnpackNewAndModifiedObjects( NeighborCommunicator *
   unpackedSize += elemManager.UnpackGlobalMaps( receiveBufferPtr, elementAdjacencyReceiveList );
 
 
-  unpackedSize += nodeManager.UnpackUpDownMaps( receiveBufferPtr, nodeUnpackList );
-  unpackedSize += edgeManager.UnpackUpDownMaps( receiveBufferPtr, edgeUnpackList );
-  unpackedSize += faceManager.UnpackUpDownMaps( receiveBufferPtr, faceUnpackList );
-  unpackedSize += elemManager.UnpackUpDownMaps( receiveBufferPtr, elementAdjacencyReceiveList );
+  unpackedSize += nodeManager.UnpackUpDownMaps( receiveBufferPtr, nodeUnpackList, false, true );
+  unpackedSize += edgeManager.UnpackUpDownMaps( receiveBufferPtr, edgeUnpackList, false, true );
+  unpackedSize += faceManager.UnpackUpDownMaps( receiveBufferPtr, faceUnpackList, false, true );
+  unpackedSize += elemManager.UnpackUpDownMaps( receiveBufferPtr, elementAdjacencyReceiveList, true );
 
 
   unpackedSize += nodeManager.Unpack( receiveBufferPtr, nodeUnpackList, 0 );
@@ -739,7 +786,8 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
 
 void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const neighbor,
                                                    int commID,
-                                                   MeshLevel * const mesh )
+                                                   MeshLevel * const mesh,
+                                                   ModifiedObjectLists & receivedObjects )
 {
   int unpackedSize = 0;
 
@@ -805,18 +853,18 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
   unpackedSize += edgeManager->UnpackGlobalMaps( receiveBufferPtr, newGhostEdges, 0 );
   unpackedSize += faceManager->UnpackGlobalMaps( receiveBufferPtr, newGhostFaces, 0 );
 
-  unpackedSize += nodeManager->UnpackUpDownMaps( receiveBufferPtr, newGhostNodes );
-  unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, newGhostEdges );
-  unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, newGhostFaces );
+  unpackedSize += nodeManager->UnpackUpDownMaps( receiveBufferPtr, newGhostNodes, true, true );
+  unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, newGhostEdges, true, true );
+  unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, newGhostFaces, true, true );
 
   unpackedSize += nodeManager->Unpack( receiveBufferPtr, newGhostNodes, 0 );
   unpackedSize += edgeManager->Unpack( receiveBufferPtr, newGhostEdges, 0 );
   unpackedSize += faceManager->Unpack( receiveBufferPtr, newGhostFaces, 0 );
 
-  unpackedSize += nodeManager->UnpackUpDownMaps( receiveBufferPtr, modGhostNodes );
-  unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, modGhostEdges );
-  unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, modGhostFaces );
-  unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, modGhostElems );
+  unpackedSize += nodeManager->UnpackUpDownMaps( receiveBufferPtr, modGhostNodes, false, true );
+  unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, modGhostEdges, false, true );
+  unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, modGhostFaces, false, true );
+  unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, modGhostElems, true );
 
 
   for( localIndex a=0 ; a<newGhostNodes.size() ; ++a )
@@ -833,6 +881,15 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
   {
     faceGhostsToRecv.push_back(newGhostFaces[a]);
   }
+
+
+  receivedObjects.newNodes.insert( newGhostNodes.begin(), newGhostNodes.end() );
+  receivedObjects.modifiedNodes.insert( modGhostNodes.begin(), modGhostNodes.end() );
+  receivedObjects.newEdges.insert( newGhostEdges.begin(), newGhostEdges.end() );
+  receivedObjects.modifiedEdges.insert( modGhostEdges.begin(), modGhostEdges.end() );
+  receivedObjects.newFaces.insert( newGhostFaces.begin(), newGhostFaces.end() );
+  receivedObjects.modifiedFaces.insert( modGhostFaces.begin(), modGhostFaces.end() );
+
 }
 
 
