@@ -94,12 +94,12 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
   }
 
   ModifiedObjectLists receivedObjects;
-  set<localIndex> & allNewNodes      = receivedObjects.newNodes;
-  set<localIndex> & allModifiedNodes = receivedObjects.modifiedNodes;
-  set<localIndex> & allNewEdges      = receivedObjects.newEdges;
-  set<localIndex> & allModifiedEdges = receivedObjects.modifiedEdges;
-  set<localIndex> & allNewFaces      = receivedObjects.newFaces;
-  set<localIndex> & allModifiedFaces = receivedObjects.modifiedFaces;
+  std::set<localIndex> & allNewNodes      = receivedObjects.newNodes;
+  std::set<localIndex> & allModifiedNodes = receivedObjects.modifiedNodes;
+  std::set<localIndex> & allNewEdges      = receivedObjects.newEdges;
+  std::set<localIndex> & allModifiedEdges = receivedObjects.modifiedEdges;
+  std::set<localIndex> & allNewFaces      = receivedObjects.newFaces;
+  std::set<localIndex> & allModifiedFaces = receivedObjects.modifiedFaces;
 
 //  set<localIndex>  allNewNodes ;
 //  set<localIndex>  allModifiedNodes;
@@ -126,7 +126,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
 
   ElementRegionManager::ElementReferenceAccessor< localIndex_array > modifiedElements;
   array1d<array1d<localIndex_array> > modifiedElementsData;
-  array1d<array1d< set<localIndex> > > allModifiedElements;
+  array1d<array1d< std::set<localIndex> > > allModifiedElements;
 
   modifiedElements.resize(elemManager->numRegions());
   modifiedElementsData.resize(elemManager->numRegions());
@@ -143,7 +143,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
 
       modifiedElements[er][esr].set( modifiedElementsData[er][esr] );
 
-      std::map< std::string, set<localIndex> >::const_iterator
+      std::map< std::string, std::set<localIndex> >::const_iterator
       iter = modifiedObjects.modifiedElements.find(subRegion->getName());
       if( iter != modifiedObjects.modifiedElements.end() )
       {
@@ -302,7 +302,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     }
   }
 
-  set<localIndex> allTouchedNodes;
+  std::set<localIndex> allTouchedNodes;
   allTouchedNodes.insert( allNewNodes.begin(), allNewNodes.end() );
   allTouchedNodes.insert( allModifiedNodes.begin(), allModifiedNodes.end() );
   nodeManager->depopulateUpMaps( allTouchedNodes,
@@ -310,13 +310,13 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
                                  faceManager->nodeList(),
                                  *elemManager );
 
-  set<localIndex> allTouchedEdges;
+  std::set<localIndex> allTouchedEdges;
   allTouchedEdges.insert( allNewEdges.begin(), allNewEdges.end() );
   allTouchedEdges.insert( allModifiedEdges.begin(), allModifiedEdges.end() );
   edgeManager->depopulateUpMaps( allTouchedEdges,
                                  faceManager->edgeList() );
 
-  set<localIndex> allTouchedFaces;
+  std::set<localIndex> allTouchedFaces;
   allTouchedFaces.insert( allNewFaces.begin(), allNewFaces.end() );
   allTouchedFaces.insert( allModifiedFaces.begin(), allModifiedFaces.end() );
   faceManager->depopulateUpMaps( allTouchedFaces,
@@ -460,7 +460,7 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
       string const & subRegionName = subRegion->getName();
       if( modifiedObjects.modifiedElements.count(subRegionName) > 0 )
       {
-        set<localIndex> const & elemList = modifiedObjects.modifiedElements.at(subRegionName);
+        std::set<localIndex> const & elemList = modifiedObjects.modifiedElements.at(subRegionName);
 
         modElemData[er][esr].resize( elemList.size() );
 
@@ -589,7 +589,7 @@ void ParallelTopologyChange::UnpackNewAndModifiedObjects( NeighborCommunicator *
 }
 
 
-static void FilterNewObjectsForPackToGhosts( set<localIndex> const & objectList,
+static void FilterNewObjectsForPackToGhosts( std::set<localIndex> const & objectList,
                                              localIndex_array const & parentIndices,
                                              localIndex_array & ghostsToSend,
                                              localIndex_array & objectsToSend )
@@ -612,7 +612,7 @@ static void FilterNewObjectsForPackToGhosts( set<localIndex> const & objectList,
   }
 }
 
-static void FilterModObjectsForPackToGhosts( set<localIndex> const & objectList,
+static void FilterModObjectsForPackToGhosts( std::set<localIndex> const & objectList,
                                              localIndex_array const & ghostsToSend,
                                              localIndex_array & objectsToSend )
 {
@@ -628,13 +628,13 @@ static void FilterModObjectsForPackToGhosts( set<localIndex> const & objectList,
 void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicator * const neighbor,
                                                              int commID,
                                                              MeshLevel * const mesh,
-                                                             set<localIndex> const & allNewNodes,
-                                                             set<localIndex> const & allNewEdges,
-                                                             set<localIndex> const & allNewFaces,
-                                                             set<localIndex> const & allModNodes,
-                                                             set<localIndex> const & allModEdges,
-                                                             set<localIndex> const & allModFaces,
-                                                             array1d<array1d< set<localIndex> > > const & allModElems )
+                                                             std::set<localIndex> const & allNewNodes,
+                                                             std::set<localIndex> const & allNewEdges,
+                                                             std::set<localIndex> const & allNewFaces,
+                                                             std::set<localIndex> const & allModNodes,
+                                                             std::set<localIndex> const & allModEdges,
+                                                             std::set<localIndex> const & allModFaces,
+                                                             array1d<array1d< std::set<localIndex> > > const & allModElems )
 {
   NodeManager * const nodeManager = mesh->getNodeManager();
   EdgeManager * const edgeManager = mesh->getEdgeManager();
