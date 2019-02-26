@@ -61,13 +61,13 @@ public:
   static void PackNewModifiedObjectsToGhosts( NeighborCommunicator * const neighbor,
                                   int commID,
                                   MeshLevel * const mesh,
-                                  set<localIndex> const & allNewNodes,
-                                  set<localIndex> const & allNewEdges,
-                                  set<localIndex> const & allNewFaces,
-                                  set<localIndex> const & allModNodes,
-                                  set<localIndex> const & allModEdges,
-                                  set<localIndex> const & allModFaces,
-                                  array1d<array1d< set<localIndex> > > const & allModifiedElements );
+                                  std::set<localIndex> const & allNewNodes,
+                                  std::set<localIndex> const & allNewEdges,
+                                  std::set<localIndex> const & allNewFaces,
+                                  std::set<localIndex> const & allModNodes,
+                                  std::set<localIndex> const & allModEdges,
+                                  std::set<localIndex> const & allModFaces,
+                                  array1d<array1d< std::set<localIndex> > > const & allModifiedElements );
 
   static void UnpackNewModToGhosts( NeighborCommunicator * const neighbor,
                                     int commID,
