@@ -101,13 +101,6 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
   std::set<localIndex> & allNewFaces      = receivedObjects.newFaces;
   std::set<localIndex> & allModifiedFaces = receivedObjects.modifiedFaces;
 
-//  set<localIndex>  allNewNodes ;
-//  set<localIndex>  allModifiedNodes;
-//  set<localIndex>  allNewEdges;
-//  set<localIndex>  allModifiedEdges ;
-//  set<localIndex>  allNewFaces;
-//  set<localIndex>  allModifiedFaces;
-
 
   allNewNodes.insert( modifiedObjects.newNodes.begin(),
                       modifiedObjects.newNodes.end() );
@@ -124,24 +117,24 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
   allModifiedFaces.insert( modifiedObjects.modifiedFaces.begin(),
                            modifiedObjects.modifiedFaces.end() );
 
-  ElementRegionManager::ElementReferenceAccessor< localIndex_array > modifiedElements;
-  array1d<array1d<localIndex_array> > modifiedElementsData;
+  ElementRegionManager::ElementReferenceAccessor< localIndex_array > modifiedLocalElements;
+  array1d<array1d<localIndex_array> > modifiedLocalElementsData;
   array1d<array1d< std::set<localIndex> > > allModifiedElements;
 
-  modifiedElements.resize(elemManager->numRegions());
-  modifiedElementsData.resize(elemManager->numRegions());
+  modifiedLocalElements.resize(elemManager->numRegions());
+  modifiedLocalElementsData.resize(elemManager->numRegions());
   allModifiedElements.resize(elemManager->numRegions());
   for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
   {
     ElementRegion * const elemRegion = elemManager->GetRegion(er);
-    modifiedElements[er].resize(elemRegion->numSubRegions());
-    modifiedElementsData[er].resize(elemRegion->numSubRegions());
+    modifiedLocalElements[er].resize(elemRegion->numSubRegions());
+    modifiedLocalElementsData[er].resize(elemRegion->numSubRegions());
     allModifiedElements[er].resize(elemRegion->numSubRegions());
     for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
     {
       ElementSubRegionBase * const subRegion = elemRegion->GetSubRegion(esr);
 
-      modifiedElements[er][esr].set( modifiedElementsData[er][esr] );
+      modifiedLocalElements[er][esr].set( modifiedLocalElementsData[er][esr] );
 
       std::map< std::string, std::set<localIndex> >::const_iterator
       iter = modifiedObjects.modifiedElements.find(subRegion->getName());
@@ -164,6 +157,14 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
 
     localIndex_array newLocalFaces, modifiedLocalFaces;
 
+    for( localIndex er=0 ; er<modifiedLocalElements.size() ; ++er )
+    {
+      for( localIndex esr=0 ; esr<modifiedLocalElements[er].size() ; ++esr )
+      {
+        array1d< localIndex > & temp = modifiedLocalElements[er][esr];
+        temp.clear();
+      }
+    }
 
     int neighborIndex;
     MPI_Waitany( commData.size,
@@ -192,7 +193,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     unpackedSize += nodeManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalNodes, false, true );
     unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalEdges, false, true );
     unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalFaces, false, true );
-    unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, modifiedElements, true );
+    unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalElements, true );
 
     unpackedSize += nodeManager->Unpack( receiveBufferPtr, modifiedLocalNodes, 0 );
     unpackedSize += edgeManager->Unpack( receiveBufferPtr, modifiedLocalEdges, 0 );
@@ -213,8 +214,8 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
       ElementRegion * const elemRegion = elemManager->GetRegion(er);
       for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
       {
-        allModifiedElements[er][esr].insert( modifiedElements[er][esr].get().begin(),
-                                             modifiedElements[er][esr].get().end() );
+        allModifiedElements[er][esr].insert( modifiedLocalElements[er][esr].get().begin(),
+                                             modifiedLocalElements[er][esr].get().end() );
       }
     }
   }
