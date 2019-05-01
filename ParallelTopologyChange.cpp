@@ -220,6 +220,10 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     }
   }
 
+  nodeManager->inheritGhostRankFromParent( allNewNodes );
+  edgeManager->inheritGhostRankFromParent( allNewEdges );
+  faceManager->inheritGhostRankFromParent( allNewFaces );
+
   MPI_Waitall( commData.size,
                commData.mpiSizeSendBufferRequest.data(),
                commData.mpiSizeSendBufferStatus.data() );
@@ -227,7 +231,6 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
   MPI_Waitall( commData.size,
                commData.mpiSendBufferRequest.data(),
                commData.mpiSizeSendBufferStatus.data() );
-
 
 
   //************************************************************************************************
