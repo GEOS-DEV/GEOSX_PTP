@@ -186,6 +186,10 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, newLocalEdges, true, true );
     unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, newLocalFaces, true, true );
 
+    unpackedSize += nodeManager->UnpackParentChildMaps( receiveBufferPtr, newLocalNodes );
+    unpackedSize += edgeManager->UnpackParentChildMaps( receiveBufferPtr, newLocalEdges );
+    unpackedSize += faceManager->UnpackParentChildMaps( receiveBufferPtr, newLocalFaces );
+
     unpackedSize += nodeManager->Unpack( receiveBufferPtr, newLocalNodes, 0 );
     unpackedSize += edgeManager->Unpack( receiveBufferPtr, newLocalEdges, 0 );
     unpackedSize += faceManager->Unpack( receiveBufferPtr, newLocalFaces, 0 );
@@ -194,6 +198,10 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalEdges, false, true );
     unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalFaces, false, true );
     unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalElements, true );
+
+    unpackedSize += nodeManager->UnpackParentChildMaps( receiveBufferPtr, modifiedLocalNodes );
+    unpackedSize += edgeManager->UnpackParentChildMaps( receiveBufferPtr, modifiedLocalEdges );
+    unpackedSize += faceManager->UnpackParentChildMaps( receiveBufferPtr, modifiedLocalFaces );
 
     unpackedSize += nodeManager->Unpack( receiveBufferPtr, modifiedLocalNodes, 0 );
     unpackedSize += edgeManager->Unpack( receiveBufferPtr, modifiedLocalEdges, 0 );
@@ -499,6 +507,10 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   bufferSize += edgeManager.PackUpDownMapsSize( newEdgePackListArray );
   bufferSize += faceManager.PackUpDownMapsSize( newFacePackListArray );
 
+  bufferSize += nodeManager.PackParentChildMapsSize( newNodePackListArray );
+  bufferSize += edgeManager.PackParentChildMapsSize( newEdgePackListArray );
+  bufferSize += faceManager.PackParentChildMapsSize( newFacePackListArray );
+
   bufferSize += nodeManager.PackSize( {}, newNodePackListArray, 0 );
   bufferSize += edgeManager.PackSize( {}, newEdgePackListArray, 0 );
   bufferSize += faceManager.PackSize( {}, newFacePackListArray, 0 );
@@ -507,6 +519,10 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   bufferSize += edgeManager.PackUpDownMapsSize( modEdgePackListArray );
   bufferSize += faceManager.PackUpDownMapsSize( modFacePackListArray );
   bufferSize += elemManager.PackUpDownMapsSize( modElemPackList );
+
+  bufferSize += nodeManager.PackParentChildMapsSize( modNodePackListArray );
+  bufferSize += edgeManager.PackParentChildMapsSize( modEdgePackListArray );
+  bufferSize += faceManager.PackParentChildMapsSize( modFacePackListArray );
 
   bufferSize += nodeManager.PackSize( {}, modNodePackListArray, 0 );
   bufferSize += edgeManager.PackSize( {}, modEdgePackListArray, 0 );
@@ -528,6 +544,10 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   packedSize += edgeManager.PackUpDownMaps( sendBufferPtr, newEdgePackListArray );
   packedSize += faceManager.PackUpDownMaps( sendBufferPtr, newFacePackListArray );
 
+  packedSize += nodeManager.PackParentChildMaps( sendBufferPtr, newNodePackListArray );
+  packedSize += edgeManager.PackParentChildMaps( sendBufferPtr, newEdgePackListArray );
+  packedSize += faceManager.PackParentChildMaps( sendBufferPtr, newFacePackListArray );
+
   packedSize += nodeManager.Pack( sendBufferPtr, {}, newNodePackListArray, 0 );
   packedSize += edgeManager.Pack( sendBufferPtr, {}, newEdgePackListArray, 0 );
   packedSize += faceManager.Pack( sendBufferPtr, {}, newFacePackListArray, 0 );
@@ -536,6 +556,10 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   packedSize += edgeManager.PackUpDownMaps( sendBufferPtr, modEdgePackListArray );
   packedSize += faceManager.PackUpDownMaps( sendBufferPtr, modFacePackListArray );
   packedSize += elemManager.PackUpDownMaps( sendBufferPtr, modElemPackList );
+
+  packedSize += nodeManager.PackParentChildMaps( sendBufferPtr, modNodePackListArray );
+  packedSize += edgeManager.PackParentChildMaps( sendBufferPtr, modEdgePackListArray );
+  packedSize += faceManager.PackParentChildMaps( sendBufferPtr, modFacePackListArray );
 
   packedSize += nodeManager.Pack( sendBufferPtr, {}, modNodePackListArray, 0 );
   packedSize += edgeManager.Pack( sendBufferPtr, {}, modEdgePackListArray, 0 );
@@ -745,6 +769,10 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
    bufferSize += edgeManager->PackUpDownMapsSize( newEdgesToSend );
    bufferSize += faceManager->PackUpDownMapsSize( newFacesToSend );
 
+   bufferSize += nodeManager->PackParentChildMapsSize( newNodesToSend );
+   bufferSize += edgeManager->PackParentChildMapsSize( newEdgesToSend );
+   bufferSize += faceManager->PackParentChildMapsSize( newFacesToSend );
+
    bufferSize += nodeManager->PackSize( {}, newNodesToSend, 0 );
    bufferSize += edgeManager->PackSize( {}, newEdgesToSend, 0 );
    bufferSize += faceManager->PackSize( {}, newFacesToSend, 0 );
@@ -754,6 +782,9 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
    bufferSize += faceManager->PackUpDownMapsSize( modFacesToSend );
    bufferSize += elemManager->PackUpDownMapsSize( modElemsToSend );
 
+   bufferSize += nodeManager->PackParentChildMapsSize( modNodesToSend );
+   bufferSize += edgeManager->PackParentChildMapsSize( modEdgesToSend );
+   bufferSize += faceManager->PackParentChildMapsSize( modFacesToSend );
 
 
    neighbor->resizeSendBuffer( commID, bufferSize );
@@ -771,6 +802,10 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
    packedSize += edgeManager->PackUpDownMaps( sendBufferPtr, newEdgesToSend );
    packedSize += faceManager->PackUpDownMaps( sendBufferPtr, newFacesToSend );
 
+   packedSize += nodeManager->PackParentChildMaps( sendBufferPtr, newNodesToSend );
+   packedSize += edgeManager->PackParentChildMaps( sendBufferPtr, newEdgesToSend );
+   packedSize += faceManager->PackParentChildMaps( sendBufferPtr, newFacesToSend );
+
    packedSize += nodeManager->Pack( sendBufferPtr, {}, newNodesToSend, 0 );
    packedSize += edgeManager->Pack( sendBufferPtr, {}, newEdgesToSend, 0 );
    packedSize += faceManager->Pack( sendBufferPtr, {}, newFacesToSend, 0 );
@@ -779,6 +814,10 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
    packedSize += edgeManager->PackUpDownMaps( sendBufferPtr, modEdgesToSend );
    packedSize += faceManager->PackUpDownMaps( sendBufferPtr, modFacesToSend );
    packedSize += elemManager->PackUpDownMaps( sendBufferPtr, modElemsToSend );
+
+   packedSize += nodeManager->PackParentChildMaps( sendBufferPtr, modNodesToSend );
+   packedSize += edgeManager->PackParentChildMaps( sendBufferPtr, modEdgesToSend );
+   packedSize += faceManager->PackParentChildMaps( sendBufferPtr, modFacesToSend );
 
 
    GEOS_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
@@ -861,6 +900,10 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
   unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, newGhostEdges, true, true );
   unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, newGhostFaces, true, true );
 
+  unpackedSize += nodeManager->UnpackParentChildMaps( receiveBufferPtr, newGhostNodes );
+  unpackedSize += edgeManager->UnpackParentChildMaps( receiveBufferPtr, newGhostEdges );
+  unpackedSize += faceManager->UnpackParentChildMaps( receiveBufferPtr, newGhostFaces );
+
   unpackedSize += nodeManager->Unpack( receiveBufferPtr, newGhostNodes, 0 );
   unpackedSize += edgeManager->Unpack( receiveBufferPtr, newGhostEdges, 0 );
   unpackedSize += faceManager->Unpack( receiveBufferPtr, newGhostFaces, 0 );
@@ -869,6 +912,10 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
   unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, modGhostEdges, false, true );
   unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, modGhostFaces, false, true );
   unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, modGhostElems, true );
+
+  unpackedSize += nodeManager->UnpackParentChildMaps( receiveBufferPtr, modGhostNodes );
+  unpackedSize += edgeManager->UnpackParentChildMaps( receiveBufferPtr, modGhostEdges );
+  unpackedSize += faceManager->UnpackParentChildMaps( receiveBufferPtr, modGhostFaces );
 
 
   for( localIndex a=0 ; a<newGhostNodes.size() ; ++a )
