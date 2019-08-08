@@ -54,9 +54,13 @@ public:
                                                       ModifiedObjectLists const & modifiedObjects,
                                                       int const commID );
 
-  static void UnpackNewAndModifiedObjects( NeighborCommunicator * const neighbor,
-                                           MeshLevel * const meshLevel,
-                                           int const commID );
+  static localIndex
+  UnpackNewAndModifiedObjectsOnOwningRanks( NeighborCommunicator * const neighbor,
+                                            MeshLevel * const mesh,
+                                            int const commID,
+                                            array1d<array1d< std::set<localIndex> > > & allnewElements,
+                                            array1d<array1d< std::set<localIndex> > > & allModifiedElements,
+                                            ModifiedObjectLists & receivedObjects );
 
   static void PackNewModifiedObjectsToGhosts( NeighborCommunicator * const neighbor,
                                   int commID,
