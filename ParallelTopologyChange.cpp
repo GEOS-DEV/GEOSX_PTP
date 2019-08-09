@@ -40,11 +40,6 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
   array1d<integer> & faceGhostRank = faceManager->GhostRank();
 
   //************************************************************************************************
-  // 1) Assign new global indices to the new objects
-  CommunicationTools::AssignNewGlobalIndices( *nodeManager, modifiedObjects.newNodes );
-  CommunicationTools::AssignNewGlobalIndices( *edgeManager, modifiedObjects.newEdges );
-  CommunicationTools::AssignNewGlobalIndices( *faceManager, modifiedObjects.newFaces );
-  CommunicationTools::AssignNewGlobalIndices( *elemManager, modifiedObjects.newElements );
 
 
   //************************************************************************************************
@@ -465,12 +460,12 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   bufferSize += nodeManager.PackGlobalMapsSize( newNodePackListArray, 0 );
   bufferSize += edgeManager.PackGlobalMapsSize( newEdgePackListArray, 0 );
   bufferSize += faceManager.PackGlobalMapsSize( newFacePackListArray, 0 );
-  bufferSize += elemManager.PackGlobalMapsSize( newElemPackList );
+//  bufferSize += elemManager.PackGlobalMapsSize( newElemPackList );
 
   bufferSize += nodeManager.PackUpDownMapsSize( newNodePackListArray );
   bufferSize += edgeManager.PackUpDownMapsSize( newEdgePackListArray );
   bufferSize += faceManager.PackUpDownMapsSize( newFacePackListArray );
-  bufferSize += elemManager.PackUpDownMapsSize( newElemPackList );
+//  bufferSize += elemManager.PackUpDownMapsSize( newElemPackList );
 
   bufferSize += nodeManager.PackParentChildMapsSize( newNodePackListArray );
   bufferSize += edgeManager.PackParentChildMapsSize( newEdgePackListArray );
@@ -479,7 +474,7 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   bufferSize += nodeManager.PackSize( {}, newNodePackListArray, 0 );
   bufferSize += edgeManager.PackSize( {}, newEdgePackListArray, 0 );
   bufferSize += faceManager.PackSize( {}, newFacePackListArray, 0 );
-  bufferSize += elemManager.PackSize( {}, newElemPackList );
+//  bufferSize += elemManager.PackSize( {}, newElemPackList );
 
   bufferSize += nodeManager.PackUpDownMapsSize( modNodePackListArray );
   bufferSize += edgeManager.PackUpDownMapsSize( modEdgePackListArray );
@@ -505,12 +500,12 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   packedSize += nodeManager.PackGlobalMaps( sendBufferPtr, newNodePackListArray, 0 );
   packedSize += edgeManager.PackGlobalMaps( sendBufferPtr, newEdgePackListArray, 0 );
   packedSize += faceManager.PackGlobalMaps( sendBufferPtr, newFacePackListArray, 0 );
-  packedSize += elemManager.PackGlobalMaps( sendBufferPtr, newElemPackList );
+//  packedSize += elemManager.PackGlobalMaps( sendBufferPtr, newElemPackList );
 
   packedSize += nodeManager.PackUpDownMaps( sendBufferPtr, newNodePackListArray );
   packedSize += edgeManager.PackUpDownMaps( sendBufferPtr, newEdgePackListArray );
   packedSize += faceManager.PackUpDownMaps( sendBufferPtr, newFacePackListArray );
-  packedSize += elemManager.PackUpDownMaps( sendBufferPtr, newElemPackList );
+//  packedSize += elemManager.PackUpDownMaps( sendBufferPtr, newElemPackList );
 
   packedSize += nodeManager.PackParentChildMaps( sendBufferPtr, newNodePackListArray );
   packedSize += edgeManager.PackParentChildMaps( sendBufferPtr, newEdgePackListArray );
@@ -519,7 +514,7 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   packedSize += nodeManager.Pack( sendBufferPtr, {}, newNodePackListArray, 0 );
   packedSize += edgeManager.Pack( sendBufferPtr, {}, newEdgePackListArray, 0 );
   packedSize += faceManager.Pack( sendBufferPtr, {}, newFacePackListArray, 0 );
-  packedSize += elemManager.Pack( sendBufferPtr, {}, newElemPackList );
+//  packedSize += elemManager.Pack( sendBufferPtr, {}, newElemPackList );
 
   packedSize += nodeManager.PackUpDownMaps( sendBufferPtr, modNodePackListArray );
   packedSize += edgeManager.PackUpDownMaps( sendBufferPtr, modEdgePackListArray );
@@ -601,12 +596,12 @@ UnpackNewAndModifiedObjectsOnOwningRanks( NeighborCommunicator * const neighbor,
   unpackedSize += nodeManager->UnpackGlobalMaps( receiveBufferPtr, newLocalNodes, 0 );
   unpackedSize += edgeManager->UnpackGlobalMaps( receiveBufferPtr, newLocalEdges, 0 );
   unpackedSize += faceManager->UnpackGlobalMaps( receiveBufferPtr, newLocalFaces, 0 );
-  unpackedSize += elemManager->UnpackGlobalMaps( receiveBufferPtr, newLocalElements );
+//  unpackedSize += elemManager->UnpackGlobalMaps( receiveBufferPtr, newLocalElements );
 
   unpackedSize += nodeManager->UnpackUpDownMaps( receiveBufferPtr, newLocalNodes, true, true );
   unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, newLocalEdges, true, true );
   unpackedSize += faceManager->UnpackUpDownMaps( receiveBufferPtr, newLocalFaces, true, true );
-  unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, newLocalElements, true );
+//  unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, newLocalElements, true );
 
   unpackedSize += nodeManager->UnpackParentChildMaps( receiveBufferPtr, newLocalNodes );
   unpackedSize += edgeManager->UnpackParentChildMaps( receiveBufferPtr, newLocalEdges );
@@ -615,7 +610,7 @@ UnpackNewAndModifiedObjectsOnOwningRanks( NeighborCommunicator * const neighbor,
   unpackedSize += nodeManager->Unpack( receiveBufferPtr, newLocalNodes, 0 );
   unpackedSize += edgeManager->Unpack( receiveBufferPtr, newLocalEdges, 0 );
   unpackedSize += faceManager->Unpack( receiveBufferPtr, newLocalFaces, 0 );
-  unpackedSize += elemManager->Unpack( receiveBufferPtr, newLocalElements );
+//  unpackedSize += elemManager->Unpack( receiveBufferPtr, newLocalElements );
 
   unpackedSize += nodeManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalNodes, false, true );
   unpackedSize += edgeManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalEdges, false, true );
@@ -668,6 +663,8 @@ static void FilterNewObjectsForPackToGhosts( std::set<localIndex> const & object
                                              localIndex_array & ghostsToSend,
                                              localIndex_array & objectsToSend )
 {
+  //TODO this needs to be inverted since the ghostToSend list should be much longer....
+  // and the objectList is a searchable set.
   for( auto const index : objectList )
   {
     localIndex const parentIndex = parentIndices[index];
@@ -676,13 +673,10 @@ static void FilterNewObjectsForPackToGhosts( std::set<localIndex> const & object
       if( ghostsToSend[a]==parentIndex )
       {
         objectsToSend.push_back( index );
+        ghostsToSend.push_back(index);
         break;
       }
     }
-  }
-  for( localIndex a=0 ; a<objectsToSend.size() ; ++a )
-  {
-    ghostsToSend.push_back( objectsToSend[a] );
   }
 }
 
