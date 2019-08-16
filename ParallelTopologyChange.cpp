@@ -27,20 +27,13 @@ ParallelTopologyChange::~ParallelTopologyChange()
 
 void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
                                                        array1d<NeighborCommunicator> & neighbors,
-                                                       ModifiedObjectLists const & modifiedObjects )
+                                                       ModifiedObjectLists & modifiedObjects )
 {
 
   NodeManager * const nodeManager = mesh->getNodeManager();
   EdgeManager * const edgeManager = mesh->getEdgeManager();
   FaceManager * const faceManager = mesh->getFaceManager();
   ElementRegionManager * const elemManager = mesh->getElemManager();
-
-  array1d<integer> & nodeGhostRank = nodeManager->GhostRank();
-  array1d<integer> & edgeGhostRank = edgeManager->GhostRank();
-  array1d<integer> & faceGhostRank = faceManager->GhostRank();
-
-  //************************************************************************************************
-
 
   //************************************************************************************************
   // 2) first we need to send over:
@@ -86,61 +79,6 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
   }
 
   ModifiedObjectLists receivedObjects;
-  std::set<localIndex> & allNewNodes      = receivedObjects.newNodes;
-  std::set<localIndex> & allModifiedNodes = receivedObjects.modifiedNodes;
-  std::set<localIndex> & allNewEdges      = receivedObjects.newEdges;
-  std::set<localIndex> & allModifiedEdges = receivedObjects.modifiedEdges;
-  std::set<localIndex> & allNewFaces      = receivedObjects.newFaces;
-  std::set<localIndex> & allModifiedFaces = receivedObjects.modifiedFaces;
-
-
-  allNewNodes.insert( modifiedObjects.newNodes.begin(),
-                      modifiedObjects.newNodes.end() );
-  allModifiedNodes.insert( modifiedObjects.modifiedNodes.begin(),
-                           modifiedObjects.modifiedNodes.end() );
-
-  allNewEdges.insert( modifiedObjects.newEdges.begin(),
-                      modifiedObjects.newEdges.end() );
-  allModifiedEdges.insert( modifiedObjects.modifiedEdges.begin(),
-                           modifiedObjects.modifiedEdges.end() );
-
-  allNewFaces.insert( modifiedObjects.newFaces.begin(),
-                      modifiedObjects.newFaces.end() );
-  allModifiedFaces.insert( modifiedObjects.modifiedFaces.begin(),
-                           modifiedObjects.modifiedFaces.end() );
-
-  array1d<array1d< std::set<localIndex> > > allNewElements;
-  array1d<array1d< std::set<localIndex> > > allModifiedElements;
-
-  allNewElements.resize(elemManager->numRegions());
-  allModifiedElements.resize(elemManager->numRegions());
-  for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
-  {
-    ElementRegion * const elemRegion = elemManager->GetRegion(er);
-    allNewElements[er].resize(elemRegion->numSubRegions());
-    allModifiedElements[er].resize(elemRegion->numSubRegions());
-    for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
-    {
-      ElementSubRegionBase * const subRegion = elemRegion->GetSubRegion(esr);
-
-      typename decltype(modifiedObjects.newElements)::const_iterator
-      iter = modifiedObjects.newElements.find({er,esr});
-      if( iter != modifiedObjects.newElements.end() )
-      {
-        allNewElements[er][esr].insert( iter->second.begin(),
-                                        iter->second.end() );
-      }
-
-      iter = modifiedObjects.modifiedElements.find({er,esr});
-      if( iter != modifiedObjects.modifiedElements.end() )
-      {
-        allModifiedElements[er][esr].insert( iter->second.begin(),
-                                             iter->second.end() );
-      }
-
-    }
-  }
-
 
   // unpack the buffers and get lists of the new objects.
   for( unsigned int count=0 ; count<neighbors.size() ; ++count )
@@ -156,21 +94,19 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     UnpackNewAndModifiedObjectsOnOwningRanks( &neighbor,
                                               mesh,
                                               commData.commID,
-                                              allNewElements,
-                                              allModifiedElements,
                                               receivedObjects );
   }
 
-  nodeManager->inheritGhostRankFromParent( allNewNodes );
-  edgeManager->inheritGhostRankFromParent( allNewEdges );
-  faceManager->inheritGhostRankFromParent( allNewFaces );
+  nodeManager->inheritGhostRankFromParent( receivedObjects.newNodes );
+  edgeManager->inheritGhostRankFromParent( receivedObjects.newEdges );
+  faceManager->inheritGhostRankFromParent( receivedObjects.newFaces );
 
   elemManager->forElementSubRegionsComplete<FaceElementSubRegion>( [&]( localIndex const er,
                                                                         localIndex const esr,
                                                                         ElementRegion const * const elemRegion,
                                                                         FaceElementSubRegion * const subRegion )
   {
-    subRegion->inheritGhostRankFromParentFace( faceManager, allNewElements[er][esr] );
+    subRegion->inheritGhostRankFromParentFace( faceManager, receivedObjects.newElements[{er,esr}] );
   });
 
   MPI_Waitall( commData.size,
@@ -181,11 +117,15 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
                commData.mpiSendBufferRequest.data(),
                commData.mpiSizeSendBufferStatus.data() );
 
+  modifiedObjects.insert( receivedObjects );
+
 
   //************************************************************************************************
   // 3) now we need to send over:
   //   a) the new objects whose parents are ghosts on neighbors.
   //   b) the modified objects whose parents are ghosts on neighbors.
+
+
 
   MPI_iCommData commData2;
   commData2.resize(neighbors.size());
@@ -196,14 +136,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     PackNewModifiedObjectsToGhosts( &neighbor,
                                     commData2.commID,
                                     mesh,
-                                    allNewNodes,
-                                    allNewEdges,
-                                    allNewFaces,
-                                    allModifiedNodes,
-                                    allModifiedEdges,
-                                    allModifiedFaces,
-                                    allNewElements,
-                                    allModifiedElements );
+                                    modifiedObjects );
 
     neighbor.MPI_iSendReceiveBufferSizes( commData2.commID,
                                           commData2.mpiSizeSendBufferRequest[neighborIndex],
@@ -241,6 +174,8 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     UnpackNewModToGhosts( &neighbor, commData2.commID, mesh, receivedObjects );
   }
 
+  modifiedObjects.insert( receivedObjects );
+
   nodeManager->FixUpDownMaps(false);
   edgeManager->FixUpDownMaps(false);
   faceManager->FixUpDownMaps(false);
@@ -256,35 +191,35 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
     }
   }
 
-//  elemManager->forElementSubRegionsComplete<FaceElementSubRegion>([&]( localIndex const er,
-//                                                                       localIndex const esr,
-//                                                                       ElementRegion const * const elemRegion,
-//                                                                       FaceElementSubRegion const * const subRegion )
-//  {
-//    updateConnectorsToFaceElems( allNewElements[er][esr],
+  elemManager->forElementSubRegionsComplete<FaceElementSubRegion>([&]( localIndex const er,
+                                                                       localIndex const esr,
+                                                                       ElementRegion const * const elemRegion,
+                                                                       FaceElementSubRegion const * const subRegion )
+  {
+//    updateConnectorsToFaceElems( receivedObjects.newElements.at({er,esr}),
 //                                 subRegion,
 //                                 faceManager,
 //                                 edgeManager );
-//  });
+  });
 
 
   std::set<localIndex> allTouchedNodes;
-  allTouchedNodes.insert( allNewNodes.begin(), allNewNodes.end() );
-  allTouchedNodes.insert( allModifiedNodes.begin(), allModifiedNodes.end() );
+  allTouchedNodes.insert( modifiedObjects.newNodes.begin(), modifiedObjects.newNodes.end() );
+  allTouchedNodes.insert( modifiedObjects.modifiedNodes.begin(), modifiedObjects.modifiedNodes.end() );
   nodeManager->depopulateUpMaps( allTouchedNodes,
                                  edgeManager->nodeList(),
                                  faceManager->nodeList(),
                                  *elemManager );
 
   std::set<localIndex> allTouchedEdges;
-  allTouchedEdges.insert( allNewEdges.begin(), allNewEdges.end() );
-  allTouchedEdges.insert( allModifiedEdges.begin(), allModifiedEdges.end() );
+  allTouchedEdges.insert( modifiedObjects.newEdges.begin(), modifiedObjects.newEdges.end() );
+  allTouchedEdges.insert( modifiedObjects.modifiedEdges.begin(), modifiedObjects.modifiedEdges.end() );
   edgeManager->depopulateUpMaps( allTouchedEdges,
                                  faceManager->edgeList() );
 
   std::set<localIndex> allTouchedFaces;
-  allTouchedFaces.insert( allNewFaces.begin(), allNewFaces.end() );
-  allTouchedFaces.insert( allModifiedFaces.begin(), allModifiedFaces.end() );
+  allTouchedFaces.insert( modifiedObjects.newFaces.begin(), modifiedObjects.newFaces.end() );
+  allTouchedFaces.insert( modifiedObjects.modifiedFaces.begin(), modifiedObjects.modifiedFaces.end() );
   faceManager->depopulateUpMaps( allTouchedFaces,
                                  *elemManager );
 
@@ -564,8 +499,8 @@ ParallelTopologyChange::
 UnpackNewAndModifiedObjectsOnOwningRanks( NeighborCommunicator * const neighbor,
                                           MeshLevel * const mesh,
                                           int const commID,
-                                          array1d<array1d< std::set<localIndex> > > & allNewElements,
-                                          array1d<array1d< std::set<localIndex> > > & allModifiedElements,
+//                                          array1d<array1d< std::set<localIndex> > > & allNewElements,
+//                                          array1d<array1d< std::set<localIndex> > > & allModifiedElements,
                                           ModifiedObjectLists & receivedObjects )
 {
   GEOSX_MARK_FUNCTION;
@@ -657,12 +592,8 @@ UnpackNewAndModifiedObjectsOnOwningRanks( NeighborCommunicator * const neighbor,
   std::set<localIndex> & allModifiedEdges = receivedObjects.modifiedEdges;
   std::set<localIndex> & allNewFaces      = receivedObjects.newFaces;
   std::set<localIndex> & allModifiedFaces = receivedObjects.modifiedFaces;
-
-//  map< std::pair<localIndex, localIndex>, std::set<localIndex> > &
-//  allNewElements = receivedObjects.newElements;
-//
-//  map< std::pair<localIndex, localIndex>, std::set<localIndex> > &
-//  allModifiedElements = receivedObjects.modifiedElements;
+  map< std::pair<localIndex, localIndex>, std::set<localIndex> > & allNewElements = receivedObjects.newElements;
+  map< std::pair<localIndex, localIndex>, std::set<localIndex> > & allModifiedElements = receivedObjects.modifiedElements;
 
   allNewNodes.insert( newLocalNodes.begin(), newLocalNodes.end() );
   allModifiedNodes.insert( modifiedLocalNodes.begin(), modifiedLocalNodes.end() );
@@ -678,10 +609,10 @@ UnpackNewAndModifiedObjectsOnOwningRanks( NeighborCommunicator * const neighbor,
     ElementRegion * const elemRegion = elemManager->GetRegion(er);
     for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
     {
-      allNewElements[er][esr].insert( newLocalElements[er][esr].get().begin(),
-                                      newLocalElements[er][esr].get().end() );
-      allModifiedElements[er][esr].insert( modifiedLocalElements[er][esr].get().begin(),
-                                               modifiedLocalElements[er][esr].get().end() );
+      allNewElements[{er,esr}].insert( newLocalElements[er][esr].get().begin(),
+                                       newLocalElements[er][esr].get().end() );
+      allModifiedElements[{er,esr}].insert( modifiedLocalElements[er][esr].get().begin(),
+                                            modifiedLocalElements[er][esr].get().end() );
     }
   }
 
@@ -727,14 +658,7 @@ static void FilterModObjectsForPackToGhosts( std::set<localIndex> const & object
 void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicator * const neighbor,
                                                              int commID,
                                                              MeshLevel * const mesh,
-                                                             std::set<localIndex> const & allNewNodes,
-                                                             std::set<localIndex> const & allNewEdges,
-                                                             std::set<localIndex> const & allNewFaces,
-                                                             std::set<localIndex> const & allModNodes,
-                                                             std::set<localIndex> const & allModEdges,
-                                                             std::set<localIndex> const & allModFaces,
-                                                             array1d<array1d< std::set<localIndex> > > const & allNewElems,
-                                                             array1d<array1d< std::set<localIndex> > > const & allModElems )
+                                                             ModifiedObjectLists & receivedObjects )
 {
   NodeManager * const nodeManager = mesh->getNodeManager();
   EdgeManager * const edgeManager = mesh->getEdgeManager();
@@ -801,14 +725,14 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
                                                                     m_ObjectManagerBaseViewKeys.
                                                                     parentIndex );
 
-   FilterNewObjectsForPackToGhosts( allNewNodes, nodalParentIndices, nodeGhostsToSend, newNodesToSend );
-   FilterModObjectsForPackToGhosts( allModNodes, nodeGhostsToSend, modNodesToSend );
+   FilterNewObjectsForPackToGhosts( receivedObjects.newNodes, nodalParentIndices, nodeGhostsToSend, newNodesToSend );
+   FilterModObjectsForPackToGhosts( receivedObjects.modifiedNodes, nodeGhostsToSend, modNodesToSend );
 
-   FilterNewObjectsForPackToGhosts( allNewEdges, edgeParentIndices, edgeGhostsToSend, newEdgesToSend );
-   FilterModObjectsForPackToGhosts( allModEdges, edgeGhostsToSend, modEdgesToSend );
+   FilterNewObjectsForPackToGhosts( receivedObjects.newEdges, edgeParentIndices, edgeGhostsToSend, newEdgesToSend );
+   FilterModObjectsForPackToGhosts( receivedObjects.modifiedEdges, edgeGhostsToSend, modEdgesToSend );
 
-   FilterNewObjectsForPackToGhosts( allNewFaces, faceParentIndices, faceGhostsToSend, newFacesToSend );
-   FilterModObjectsForPackToGhosts( allModFaces, faceGhostsToSend, modFacesToSend );
+   FilterNewObjectsForPackToGhosts( receivedObjects.newFaces, faceParentIndices, faceGhostsToSend, newFacesToSend );
+   FilterModObjectsForPackToGhosts( receivedObjects.modifiedFaces, faceGhostsToSend, modFacesToSend );
 
    set<localIndex> faceGhostsToSendSet;
    for( localIndex const & kf : faceGhostsToSend )
@@ -832,7 +756,7 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
                                                                        FaceElementSubRegion const * const subRegion )
      {
        FaceElementSubRegion::FaceMapType const & faceList = subRegion->faceList();
-       for( localIndex const & k : allNewElems[er][esr] )
+       for( localIndex const & k : receivedObjects.newElements.at({er,esr}) )
        {
          if( faceGhostsToSendSet.count( faceList(k,0) ) )
          {
@@ -847,7 +771,7 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
        modElemsToSend[er][esr].set( modElemsToSendData[er][esr] );
        for( localIndex a=0 ; a<elementGhostToSend[er][esr].get().size() ; ++a )
        {
-         if( allModElems[er][esr].count( elementGhostToSend[er][esr][a] ) > 0 )
+         if( receivedObjects.modifiedElements.at({er,esr}).count( elementGhostToSend[er][esr][a] ) > 0 )
          {
            modElemsToSendData[er][esr].push_back(elementGhostToSend[er][esr][a]);
          }
