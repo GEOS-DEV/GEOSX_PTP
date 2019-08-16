@@ -71,12 +71,19 @@ public:
                                   std::set<localIndex> const & allModNodes,
                                   std::set<localIndex> const & allModEdges,
                                   std::set<localIndex> const & allModFaces,
+                                  array1d<array1d< std::set<localIndex> > > const & allNewElems,
                                   array1d<array1d< std::set<localIndex> > > const & allModifiedElements );
 
   static void UnpackNewModToGhosts( NeighborCommunicator * const neighbor,
                                     int commID,
                                     MeshLevel * const mesh,
                                     ModifiedObjectLists & receivedObjects );
+
+
+  static void updateConnectorsToFaceElems( std::set<localIndex> const & newFaceElements,
+                                           FaceElementSubRegion const * const faceElemSubRegion,
+                                           FaceManager const * const faceManager,
+                                           EdgeManager * const edgeManager  );
 
 };
 
