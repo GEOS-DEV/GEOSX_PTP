@@ -983,7 +983,10 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
       for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
       {
         elementGhostToReceive[er][esr].get().push_back( newElemIndex);
+        receivedObjects.newElements[{er,esr}].insert(newElemIndex);
       }
+      receivedObjects.modifiedElements[{er,esr}].insert( modGhostElemsData[er][esr].begin(),
+                                                         modGhostElemsData[er][esr].end() );
     }
   }
 
