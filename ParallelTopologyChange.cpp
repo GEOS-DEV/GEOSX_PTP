@@ -196,10 +196,10 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
                                                                        ElementRegion const * const elemRegion,
                                                                        FaceElementSubRegion const * const subRegion )
   {
-//    updateConnectorsToFaceElems( receivedObjects.newElements.at({er,esr}),
-//                                 subRegion,
-//                                 faceManager,
-//                                 edgeManager );
+    updateConnectorsToFaceElems( receivedObjects.newElements.at({er,esr}),
+                                 subRegion,
+                                 faceManager,
+                                 edgeManager );
   });
 
 
@@ -1021,13 +1021,24 @@ void ParallelTopologyChange::updateConnectorsToFaceElems( std::set<localIndex> c
         connectorToElem.resize( connectorToElem.size() + 1 );
         connectorEdgesToEdges.push_back(edgeIndex);
         edgesToConnectorEdges[edgeIndex] = connectorEdgesToEdges.size() - 1;
-
       }
       localIndex const connectorIndex = edgesToConnectorEdges.at(edgeIndex);
-      localIndex const numCells = connectorToElem.sizeOfArray(connectorIndex) + 1;
-      connectorToElem.resizeArray( connectorIndex, numCells );
-      connectorToElem[connectorIndex][ numCells-1 ] = kfe;
-      edgeManager-> m_recalculateFractureConnectorEdges.insert( connectorIndex );
+
+      localIndex const numExistingCells = connectorToElem.sizeOfArray(connectorIndex);
+      bool cellExistsInMap = false;
+      for( localIndex k=0 ; k<numExistingCells ; ++k )
+      {
+        if( kfe == connectorToElem[connectorIndex][k] )
+        {
+          cellExistsInMap = true;
+        }
+      }
+      if( !cellExistsInMap )
+      {
+        connectorToElem.resizeArray( connectorIndex, numExistingCells+1 );
+        connectorToElem[connectorIndex][ numExistingCells ] = kfe;
+        edgeManager-> m_recalculateFractureConnectorEdges.insert( connectorIndex );
+      }
     }
   }
 }
