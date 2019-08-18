@@ -50,7 +50,6 @@ public:
 
   static void updateConnectorsToFaceElems( std::set<localIndex> const & newFaceElements,
                                            FaceElementSubRegion const * const faceElemSubRegion,
-                                           FaceManager const * const faceManager,
                                            EdgeManager * const edgeManager  );
 
 };

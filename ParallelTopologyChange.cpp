@@ -198,7 +198,6 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
   {
     updateConnectorsToFaceElems( receivedObjects.newElements.at({er,esr}),
                                  subRegion,
-                                 faceManager,
                                  edgeManager );
   });
 
@@ -1002,14 +1001,13 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
 
 void ParallelTopologyChange::updateConnectorsToFaceElems( std::set<localIndex> const & newFaceElements,
                                                           FaceElementSubRegion const * const faceElemSubRegion,
-                                                          FaceManager const * const faceManager,
                                                           EdgeManager * const edgeManager )
 {
   ArrayOfArrays<localIndex> & connectorToElem = edgeManager->m_fractureConnectorEdgesToFaceElements;
   map< localIndex, localIndex > & edgesToConnectorEdges = edgeManager->m_edgesToFractureConnectorsEdges;
   array1d<localIndex> & connectorEdgesToEdges = edgeManager->m_fractureConnectorsEdgesToEdges;
 
-  OrderedVariableOneToManyRelation const & facesToEdges = faceManager->edgeList();
+  OrderedVariableOneToManyRelation const & facesToEdges = faceElemSubRegion->edgeList();
 
   for( localIndex const & kfe : newFaceElements )
   {
