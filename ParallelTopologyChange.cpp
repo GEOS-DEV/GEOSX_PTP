@@ -3,7 +3,7 @@
  */
 
 #include "ParallelTopologyChange.hpp"
-
+#include "common/GeosxMacros.hpp"
 #include "common/TimingMacros.hpp"
 #include "MPI_Communications/CommunicationTools.hpp"
 #include "mesh/ElementRegionManager.hpp"
@@ -44,8 +44,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
   commData.resize( neighbors.size() );
   for( unsigned int neighborIndex=0 ; neighborIndex<neighbors.size() ; ++neighborIndex )
   {
-    NeighborCommunicator& neighbor = neighbors[neighborIndex];
-    int const neighborRank = neighbor.NeighborRank();
+    NeighborCommunicator & neighbor = neighbors[neighborIndex];
 
     PackNewAndModifiedObjectsToOwningRanks( &neighbor,
                                             mesh,
@@ -99,7 +98,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
 
   elemManager->forElementSubRegionsComplete<FaceElementSubRegion>( [&]( localIndex const er,
                                                                         localIndex const esr,
-                                                                        ElementRegionBase const * const elemRegion,
+                                                                        ElementRegionBase const * const GEOSX_UNUSED_ARG( elemRegion ),
                                                                         FaceElementSubRegion * const subRegion )
   {
     subRegion->inheritGhostRankFromParentFace( faceManager, receivedObjects.newElements[{er,esr}] );
@@ -189,7 +188,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
 
   elemManager->forElementSubRegionsComplete<FaceElementSubRegion>([&]( localIndex const er,
                                                                        localIndex const esr,
-                                                                       ElementRegionBase const * const elemRegion,
+                                                                       ElementRegionBase const * const GEOSX_UNUSED_ARG( elemRegion ),
                                                                        FaceElementSubRegion const * const subRegion )
   {
     updateConnectorsToFaceElems( receivedObjects.newElements.at({er,esr}),
@@ -364,7 +363,6 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
     {
       ElementSubRegionBase * const subRegion = elemRegion->GetSubRegion(esr);
       integer_array const & subRegionGhostRank = subRegion->GhostRank();
-      string const & subRegionName = subRegion->getName();
       if( modifiedObjects.modifiedElements.count({er,esr}) > 0 )
       {
         std::set<localIndex> const & elemList = modifiedObjects.modifiedElements.at({er,esr});
@@ -537,8 +535,6 @@ UnpackNewAndModifiedObjectsOnOwningRanks( NeighborCommunicator * const neighbor,
     modifiedLocalElementsData[er].resize(elemRegion->numSubRegions());
     for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
     {
-      ElementSubRegionBase * const subRegion = elemRegion->GetSubRegion(esr);
-
       newLocalElements[er][esr].set(newLocalElementsData[er][esr]);
       modifiedLocalElements[er][esr].set( modifiedLocalElementsData[er][esr] );
     }
@@ -663,10 +659,6 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
   FaceManager * const faceManager = mesh->getFaceManager();
   ElementRegionManager * const elemManager = mesh->getElemManager();
 
-  array1d<integer> & nodeGhostRank = nodeManager->GhostRank();
-  array1d<integer> & edgeGhostRank = edgeManager->GhostRank();
-  array1d<integer> & faceGhostRank = faceManager->GhostRank();
-
   localIndex_array newNodesToSend;
   localIndex_array newEdgesToSend;
   localIndex_array newFacesToSend;
@@ -680,174 +672,174 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
   array1d< array1d <localIndex_array> > modElemsToSendData;
 
   Group *
-   nodeNeighborData = nodeManager->GetGroup( nodeManager->groupKeys.neighborData )->
-                      GetGroup( std::to_string( neighbor->NeighborRank() ) );
+  nodeNeighborData = nodeManager->GetGroup( nodeManager->groupKeys.neighborData )->
+                                  GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
-   Group *
-   edgeNeighborData = edgeManager->GetGroup( edgeManager->groupKeys.neighborData )->
-                      GetGroup( std::to_string( neighbor->NeighborRank() ) );
+  Group *
+  edgeNeighborData = edgeManager->GetGroup( edgeManager->groupKeys.neighborData )->
+                                  GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
-   Group *
-   faceNeighborData = faceManager->GetGroup( faceManager->groupKeys.neighborData )->
-                      GetGroup( std::to_string( neighbor->NeighborRank() ) );
+  Group *
+  faceNeighborData = faceManager->GetGroup( faceManager->groupKeys.neighborData )->
+                                  GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
-   localIndex_array &
-   nodeGhostsToSend = nodeNeighborData->getReference<localIndex_array>( nodeManager->viewKeys.ghostsToSend );
+  localIndex_array &
+  nodeGhostsToSend = nodeNeighborData->getReference<localIndex_array>( nodeManager->viewKeys.ghostsToSend );
 
-   localIndex_array &
-   edgeGhostsToSend = edgeNeighborData->getReference<localIndex_array>( nodeManager->viewKeys.ghostsToSend );
+  localIndex_array &
+  edgeGhostsToSend = edgeNeighborData->getReference<localIndex_array>( nodeManager->viewKeys.ghostsToSend );
 
-   localIndex_array &
-   faceGhostsToSend = faceNeighborData->getReference<localIndex_array>( faceManager->viewKeys.ghostsToSend );
+  localIndex_array &
+  faceGhostsToSend = faceNeighborData->getReference<localIndex_array>( faceManager->viewKeys.ghostsToSend );
 
-   ElementRegionManager::ElementReferenceAccessor<localIndex_array>
-   elementGhostToSend =
+  ElementRegionManager::ElementReferenceAccessor<localIndex_array>
+  elementGhostToSend =
      elemManager->ConstructReferenceAccessor<localIndex_array>( ObjectManagerBase::
                                                           viewKeyStruct::
                                                           ghostsToSendString,
                                                           std::to_string( neighbor->NeighborRank() ) );
 
 
-   localIndex_array const &
-   nodalParentIndices = nodeManager->getReference<localIndex_array>( nodeManager->
+  localIndex_array const &
+  nodalParentIndices = nodeManager->getReference<localIndex_array>( nodeManager->
                                                                      m_ObjectManagerBaseViewKeys.
                                                                      parentIndex );
 
-   localIndex_array const &
-   edgeParentIndices = edgeManager->getReference<localIndex_array>( edgeManager->
+  localIndex_array const &
+  edgeParentIndices = edgeManager->getReference<localIndex_array>( edgeManager->
                                                                     m_ObjectManagerBaseViewKeys.
                                                                     parentIndex );
 
-   localIndex_array const &
-   faceParentIndices = faceManager->getReference<localIndex_array>( faceManager->
+  localIndex_array const &
+  faceParentIndices = faceManager->getReference<localIndex_array>( faceManager->
                                                                     m_ObjectManagerBaseViewKeys.
                                                                     parentIndex );
 
-   FilterNewObjectsForPackToGhosts( receivedObjects.newNodes, nodalParentIndices, nodeGhostsToSend, newNodesToSend );
-   FilterModObjectsForPackToGhosts( receivedObjects.modifiedNodes, nodeGhostsToSend, modNodesToSend );
+  FilterNewObjectsForPackToGhosts( receivedObjects.newNodes, nodalParentIndices, nodeGhostsToSend, newNodesToSend );
+  FilterModObjectsForPackToGhosts( receivedObjects.modifiedNodes, nodeGhostsToSend, modNodesToSend );
 
-   FilterNewObjectsForPackToGhosts( receivedObjects.newEdges, edgeParentIndices, edgeGhostsToSend, newEdgesToSend );
-   FilterModObjectsForPackToGhosts( receivedObjects.modifiedEdges, edgeGhostsToSend, modEdgesToSend );
+  FilterNewObjectsForPackToGhosts( receivedObjects.newEdges, edgeParentIndices, edgeGhostsToSend, newEdgesToSend );
+  FilterModObjectsForPackToGhosts( receivedObjects.modifiedEdges, edgeGhostsToSend, modEdgesToSend );
 
-   FilterNewObjectsForPackToGhosts( receivedObjects.newFaces, faceParentIndices, faceGhostsToSend, newFacesToSend );
-   FilterModObjectsForPackToGhosts( receivedObjects.modifiedFaces, faceGhostsToSend, modFacesToSend );
+  FilterNewObjectsForPackToGhosts( receivedObjects.newFaces, faceParentIndices, faceGhostsToSend, newFacesToSend );
+  FilterModObjectsForPackToGhosts( receivedObjects.modifiedFaces, faceGhostsToSend, modFacesToSend );
 
-   set<localIndex> faceGhostsToSendSet;
-   for( localIndex const & kf : faceGhostsToSend )
-   {
-     faceGhostsToSendSet.insert(kf);
-   }
+  set<localIndex> faceGhostsToSendSet;
+  for( localIndex const & kf : faceGhostsToSend )
+  {
+    faceGhostsToSendSet.insert(kf);
+  }
 
-   newElemsToSendData.resize( elemManager->numRegions() );
-   newElemsToSend.resize( elemManager->numRegions() );
-   modElemsToSendData.resize( elemManager->numRegions() );
-   modElemsToSend.resize( elemManager->numRegions() );
-   for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
-   {
-     ElementRegionBase * const elemRegion = elemManager->GetRegion(er);
-     newElemsToSendData[er].resize( elemRegion->numSubRegions() );
-     newElemsToSend[er].resize( elemRegion->numSubRegions() );
-     modElemsToSendData[er].resize( elemRegion->numSubRegions() );
-     modElemsToSend[er].resize( elemRegion->numSubRegions() );
+  newElemsToSendData.resize( elemManager->numRegions() );
+  newElemsToSend.resize( elemManager->numRegions() );
+  modElemsToSendData.resize( elemManager->numRegions() );
+  modElemsToSend.resize( elemManager->numRegions() );
+  for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
+  {
+    ElementRegionBase * const elemRegion = elemManager->GetRegion(er);
+    newElemsToSendData[er].resize( elemRegion->numSubRegions() );
+    newElemsToSend[er].resize( elemRegion->numSubRegions() );
+    modElemsToSendData[er].resize( elemRegion->numSubRegions() );
+    modElemsToSend[er].resize( elemRegion->numSubRegions() );
 
-     elemRegion->forElementSubRegionsIndex<FaceElementSubRegion>( [&]( localIndex const esr,
-                                                                       FaceElementSubRegion const * const subRegion )
-     {
-       FaceElementSubRegion::FaceMapType const & faceList = subRegion->faceList();
-       for( localIndex const & k : receivedObjects.newElements.at({er,esr}) )
-       {
-         if( faceGhostsToSendSet.count( faceList(k,0) ) )
-         {
-           newElemsToSendData[er][esr].push_back(k);
-           elementGhostToSend[er][esr].get().push_back(k);
-         }
-       }
-       newElemsToSend[er][esr] = newElemsToSendData[er][esr] ;
-     });
-     for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
-     {
-       modElemsToSend[er][esr].set( modElemsToSendData[er][esr] );
-       for( localIndex a=0 ; a<elementGhostToSend[er][esr].get().size() ; ++a )
-       {
-         if( receivedObjects.modifiedElements.at({er,esr}).count( elementGhostToSend[er][esr][a] ) > 0 )
-         {
-           modElemsToSendData[er][esr].push_back(elementGhostToSend[er][esr][a]);
-         }
-       }
-     }
-   }
-
-
-   int bufferSize = 0;
-
-   bufferSize += nodeManager->PackGlobalMapsSize( newNodesToSend, 0 );
-   bufferSize += edgeManager->PackGlobalMapsSize( newEdgesToSend, 0 );
-   bufferSize += faceManager->PackGlobalMapsSize( newFacesToSend, 0 );
-   bufferSize += elemManager->PackGlobalMapsSize( newElemsToSend );
-
-   bufferSize += nodeManager->PackUpDownMapsSize( newNodesToSend );
-   bufferSize += edgeManager->PackUpDownMapsSize( newEdgesToSend );
-   bufferSize += faceManager->PackUpDownMapsSize( newFacesToSend );
-   bufferSize += elemManager->PackUpDownMapsSize( newElemsToSend );
-
-   bufferSize += nodeManager->PackParentChildMapsSize( newNodesToSend );
-   bufferSize += edgeManager->PackParentChildMapsSize( newEdgesToSend );
-   bufferSize += faceManager->PackParentChildMapsSize( newFacesToSend );
-
-   bufferSize += nodeManager->PackSize( {}, newNodesToSend, 0 );
-   bufferSize += edgeManager->PackSize( {}, newEdgesToSend, 0 );
-   bufferSize += faceManager->PackSize( {}, newFacesToSend, 0 );
-   bufferSize += elemManager->PackSize( {}, newElemsToSend );
-
-   bufferSize += nodeManager->PackUpDownMapsSize( modNodesToSend );
-   bufferSize += edgeManager->PackUpDownMapsSize( modEdgesToSend );
-   bufferSize += faceManager->PackUpDownMapsSize( modFacesToSend );
-   bufferSize += elemManager->PackUpDownMapsSize( modElemsToSend );
-
-   bufferSize += nodeManager->PackParentChildMapsSize( modNodesToSend );
-   bufferSize += edgeManager->PackParentChildMapsSize( modEdgesToSend );
-   bufferSize += faceManager->PackParentChildMapsSize( modFacesToSend );
+    elemRegion->forElementSubRegionsIndex<FaceElementSubRegion>( [&]( localIndex const esr,
+                                                                      FaceElementSubRegion const * const subRegion )
+    {
+      FaceElementSubRegion::FaceMapType const & faceList = subRegion->faceList();
+      for( localIndex const & k : receivedObjects.newElements.at({er,esr}) )
+      {
+        if( faceGhostsToSendSet.count( faceList(k,0) ) )
+        {
+          newElemsToSendData[er][esr].push_back(k);
+          elementGhostToSend[er][esr].get().push_back(k);
+        }
+      }
+      newElemsToSend[er][esr] = newElemsToSendData[er][esr] ;
+    });
+    for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
+    {
+      modElemsToSend[er][esr].set( modElemsToSendData[er][esr] );
+      for( localIndex a=0 ; a<elementGhostToSend[er][esr].get().size() ; ++a )
+      {
+        if( receivedObjects.modifiedElements.at({er,esr}).count( elementGhostToSend[er][esr][a] ) > 0 )
+        {
+          modElemsToSendData[er][esr].push_back(elementGhostToSend[er][esr][a]);
+        }
+      }
+    }
+  }
 
 
-   neighbor->resizeSendBuffer( commID, bufferSize );
+  int bufferSize = 0;
 
-   buffer_type & sendBuffer = neighbor->SendBuffer( commID );
-   buffer_unit_type * sendBufferPtr = sendBuffer.data();
+  bufferSize += nodeManager->PackGlobalMapsSize( newNodesToSend, 0 );
+  bufferSize += edgeManager->PackGlobalMapsSize( newEdgesToSend, 0 );
+  bufferSize += faceManager->PackGlobalMapsSize( newFacesToSend, 0 );
+  bufferSize += elemManager->PackGlobalMapsSize( newElemsToSend );
 
-   int packedSize = 0;
+  bufferSize += nodeManager->PackUpDownMapsSize( newNodesToSend );
+  bufferSize += edgeManager->PackUpDownMapsSize( newEdgesToSend );
+  bufferSize += faceManager->PackUpDownMapsSize( newFacesToSend );
+  bufferSize += elemManager->PackUpDownMapsSize( newElemsToSend );
 
-   packedSize += nodeManager->PackGlobalMaps( sendBufferPtr, newNodesToSend, 0 );
-   packedSize += edgeManager->PackGlobalMaps( sendBufferPtr, newEdgesToSend, 0 );
-   packedSize += faceManager->PackGlobalMaps( sendBufferPtr, newFacesToSend, 0 );
-   packedSize += elemManager->PackGlobalMaps( sendBufferPtr, newElemsToSend );
+  bufferSize += nodeManager->PackParentChildMapsSize( newNodesToSend );
+  bufferSize += edgeManager->PackParentChildMapsSize( newEdgesToSend );
+  bufferSize += faceManager->PackParentChildMapsSize( newFacesToSend );
 
-   packedSize += nodeManager->PackUpDownMaps( sendBufferPtr, newNodesToSend );
-   packedSize += edgeManager->PackUpDownMaps( sendBufferPtr, newEdgesToSend );
-   packedSize += faceManager->PackUpDownMaps( sendBufferPtr, newFacesToSend );
-   packedSize += elemManager->PackUpDownMaps( sendBufferPtr, newElemsToSend );
+  bufferSize += nodeManager->PackSize( {}, newNodesToSend, 0 );
+  bufferSize += edgeManager->PackSize( {}, newEdgesToSend, 0 );
+  bufferSize += faceManager->PackSize( {}, newFacesToSend, 0 );
+  bufferSize += elemManager->PackSize( {}, newElemsToSend );
 
-   packedSize += nodeManager->PackParentChildMaps( sendBufferPtr, newNodesToSend );
-   packedSize += edgeManager->PackParentChildMaps( sendBufferPtr, newEdgesToSend );
-   packedSize += faceManager->PackParentChildMaps( sendBufferPtr, newFacesToSend );
+  bufferSize += nodeManager->PackUpDownMapsSize( modNodesToSend );
+  bufferSize += edgeManager->PackUpDownMapsSize( modEdgesToSend );
+  bufferSize += faceManager->PackUpDownMapsSize( modFacesToSend );
+  bufferSize += elemManager->PackUpDownMapsSize( modElemsToSend );
 
-   packedSize += nodeManager->Pack( sendBufferPtr, {}, newNodesToSend, 0 );
-   packedSize += edgeManager->Pack( sendBufferPtr, {}, newEdgesToSend, 0 );
-   packedSize += faceManager->Pack( sendBufferPtr, {}, newFacesToSend, 0 );
-   packedSize += elemManager->Pack( sendBufferPtr, {}, newElemsToSend );
-
-   packedSize += nodeManager->PackUpDownMaps( sendBufferPtr, modNodesToSend );
-   packedSize += edgeManager->PackUpDownMaps( sendBufferPtr, modEdgesToSend );
-   packedSize += faceManager->PackUpDownMaps( sendBufferPtr, modFacesToSend );
-   packedSize += elemManager->PackUpDownMaps( sendBufferPtr, modElemsToSend );
-
-   packedSize += nodeManager->PackParentChildMaps( sendBufferPtr, modNodesToSend );
-   packedSize += edgeManager->PackParentChildMaps( sendBufferPtr, modEdgesToSend );
-   packedSize += faceManager->PackParentChildMaps( sendBufferPtr, modFacesToSend );
+  bufferSize += nodeManager->PackParentChildMapsSize( modNodesToSend );
+  bufferSize += edgeManager->PackParentChildMapsSize( modEdgesToSend );
+  bufferSize += faceManager->PackParentChildMapsSize( modFacesToSend );
 
 
-   GEOS_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
+  neighbor->resizeSendBuffer( commID, bufferSize );
 
-   neighbor->MPI_iSendReceive( commID, MPI_COMM_GEOSX );
+  buffer_type & sendBuffer = neighbor->SendBuffer( commID );
+  buffer_unit_type * sendBufferPtr = sendBuffer.data();
+
+  int packedSize = 0;
+
+  packedSize += nodeManager->PackGlobalMaps( sendBufferPtr, newNodesToSend, 0 );
+  packedSize += edgeManager->PackGlobalMaps( sendBufferPtr, newEdgesToSend, 0 );
+  packedSize += faceManager->PackGlobalMaps( sendBufferPtr, newFacesToSend, 0 );
+  packedSize += elemManager->PackGlobalMaps( sendBufferPtr, newElemsToSend );
+
+  packedSize += nodeManager->PackUpDownMaps( sendBufferPtr, newNodesToSend );
+  packedSize += edgeManager->PackUpDownMaps( sendBufferPtr, newEdgesToSend );
+  packedSize += faceManager->PackUpDownMaps( sendBufferPtr, newFacesToSend );
+  packedSize += elemManager->PackUpDownMaps( sendBufferPtr, newElemsToSend );
+
+  packedSize += nodeManager->PackParentChildMaps( sendBufferPtr, newNodesToSend );
+  packedSize += edgeManager->PackParentChildMaps( sendBufferPtr, newEdgesToSend );
+  packedSize += faceManager->PackParentChildMaps( sendBufferPtr, newFacesToSend );
+
+  packedSize += nodeManager->Pack( sendBufferPtr, {}, newNodesToSend, 0 );
+  packedSize += edgeManager->Pack( sendBufferPtr, {}, newEdgesToSend, 0 );
+  packedSize += faceManager->Pack( sendBufferPtr, {}, newFacesToSend, 0 );
+  packedSize += elemManager->Pack( sendBufferPtr, {}, newElemsToSend );
+
+  packedSize += nodeManager->PackUpDownMaps( sendBufferPtr, modNodesToSend );
+  packedSize += edgeManager->PackUpDownMaps( sendBufferPtr, modEdgesToSend );
+  packedSize += faceManager->PackUpDownMaps( sendBufferPtr, modFacesToSend );
+  packedSize += elemManager->PackUpDownMaps( sendBufferPtr, modElemsToSend );
+
+  packedSize += nodeManager->PackParentChildMaps( sendBufferPtr, modNodesToSend );
+  packedSize += edgeManager->PackParentChildMaps( sendBufferPtr, modEdgesToSend );
+  packedSize += faceManager->PackParentChildMaps( sendBufferPtr, modFacesToSend );
+
+
+  GEOS_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
+
+  neighbor->MPI_iSendReceive( commID, MPI_COMM_GEOSX );
 
 
 }
@@ -1006,7 +998,7 @@ void ParallelTopologyChange::updateConnectorsToFaceElems( std::set<localIndex> c
   map< localIndex, localIndex > & edgesToConnectorEdges = edgeManager->m_edgesToFractureConnectorsEdges;
   array1d<localIndex> & connectorEdgesToEdges = edgeManager->m_fractureConnectorsEdgesToEdges;
 
-  OrderedVariableOneToManyRelation const & facesToEdges = faceElemSubRegion->edgeList();
+  arrayView1d< arrayView1d< localIndex const > const > const & facesToEdges = faceElemSubRegion->edgeList().toViewConst();
 
   for( localIndex const & kfe : newFaceElements )
   {
