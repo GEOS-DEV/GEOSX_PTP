@@ -27,7 +27,8 @@ ParallelTopologyChange::~ParallelTopologyChange()
 
 void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
                                                        array1d<NeighborCommunicator> & neighbors,
-                                                       ModifiedObjectLists & modifiedObjects )
+                                                       ModifiedObjectLists & modifiedObjects,
+                                                       ModifiedObjectLists & receivedObjects )
 {
 
   NodeManager * const nodeManager = mesh->getNodeManager();
@@ -77,8 +78,6 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
                                       commData.mpiRecvBufferRequest[neighborIndex],
                                       MPI_COMM_GEOSX);
   }
-
-  ModifiedObjectLists receivedObjects;
 
   // unpack the buffers and get lists of the new objects.
   for( unsigned int count=0 ; count<neighbors.size() ; ++count )

@@ -24,7 +24,8 @@ public:
 
   static void SyncronizeTopologyChange( MeshLevel * const mesh,
                                         array1d<NeighborCommunicator> & neighbors,
-                                        ModifiedObjectLists & modifiedObjects );
+                                        ModifiedObjectLists & modifiedObjects,
+                                        ModifiedObjectLists & receivedObjects );
 
   static void PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
                                                       MeshLevel * const meshLevel,
