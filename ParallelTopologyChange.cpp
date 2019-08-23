@@ -222,6 +222,9 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
   faceManager->depopulateUpMaps( allTouchedFaces,
                                  *elemManager );
 
+  nodeManager->enforceStateFieldConsistencyPostTopologyChange(modifiedObjects.modifiedNodes);
+  edgeManager->enforceStateFieldConsistencyPostTopologyChange(modifiedObjects.modifiedEdges);
+  faceManager->enforceStateFieldConsistencyPostTopologyChange(modifiedObjects.modifiedFaces);
 
 
 }
