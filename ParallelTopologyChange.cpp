@@ -103,7 +103,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
 
   elemManager->forElementSubRegionsComplete<FaceElementSubRegion>( [&]( localIndex const er,
                                                                         localIndex const esr,
-                                                                        ElementRegion const * const elemRegion,
+                                                                        ElementRegionBase const * const elemRegion,
                                                                         FaceElementSubRegion * const subRegion )
   {
     subRegion->inheritGhostRankFromParentFace( faceManager, receivedObjects.newElements[{er,esr}] );
@@ -183,7 +183,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
 
   for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
   {
-    ElementRegion * const elemRegion = elemManager->GetRegion(er);
+    ElementRegionBase * const elemRegion = elemManager->GetRegion(er);
     for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
     {
       ElementSubRegionBase * const subRegion = elemRegion->GetSubRegion(esr);
@@ -193,7 +193,7 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
 
   elemManager->forElementSubRegionsComplete<FaceElementSubRegion>([&]( localIndex const er,
                                                                        localIndex const esr,
-                                                                       ElementRegion const * const elemRegion,
+                                                                       ElementRegionBase const * const elemRegion,
                                                                        FaceElementSubRegion const * const subRegion )
   {
     updateConnectorsToFaceElems( receivedObjects.newElements.at({er,esr}),
@@ -356,7 +356,7 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   modElemData.resize(elemManager.numRegions());
   for( localIndex er=0 ; er<elemManager.numRegions() ; ++er )
   {
-    ElementRegion * const elemRegion = elemManager.GetRegion(er);
+    ElementRegionBase * const elemRegion = elemManager.GetRegion(er);
     newElemPackList[er].resize(elemRegion->numSubRegions());
     newElemData[er].resize(elemRegion->numSubRegions());
     modElemPackList[er].resize(elemRegion->numSubRegions());
@@ -531,7 +531,7 @@ UnpackNewAndModifiedObjectsOnOwningRanks( NeighborCommunicator * const neighbor,
   modifiedLocalElementsData.resize(elemManager->numRegions());
   for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
   {
-    ElementRegion * const elemRegion = elemManager->GetRegion(er);
+    ElementRegionBase * const elemRegion = elemManager->GetRegion(er);
     newLocalElements[er].resize(elemRegion->numSubRegions());
     newLocalElementsData[er].resize(elemRegion->numSubRegions());
     modifiedLocalElements[er].resize(elemRegion->numSubRegions());
@@ -605,7 +605,7 @@ UnpackNewAndModifiedObjectsOnOwningRanks( NeighborCommunicator * const neighbor,
 
   for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
   {
-    ElementRegion * const elemRegion = elemManager->GetRegion(er);
+    ElementRegionBase * const elemRegion = elemManager->GetRegion(er);
     for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
     {
       allNewElements[{er,esr}].insert( newLocalElements[er][esr].get().begin(),
@@ -745,7 +745,7 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
    modElemsToSend.resize( elemManager->numRegions() );
    for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
    {
-     ElementRegion * const elemRegion = elemManager->GetRegion(er);
+     ElementRegionBase * const elemRegion = elemManager->GetRegion(er);
      newElemsToSendData[er].resize( elemRegion->numSubRegions() );
      newElemsToSend[er].resize( elemRegion->numSubRegions() );
      modElemsToSendData[er].resize( elemRegion->numSubRegions() );
@@ -917,7 +917,7 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
   modGhostElemsData.resize( elemManager->numRegions() );
   for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
   {
-    ElementRegion * const elemRegion = elemManager->GetRegion(er);
+    ElementRegionBase * const elemRegion = elemManager->GetRegion(er);
     newGhostElemsData[er].resize( elemRegion->numSubRegions() );
     newGhostElems[er].resize( elemRegion->numSubRegions() );
     modGhostElemsData[er].resize( elemRegion->numSubRegions() );
@@ -976,7 +976,7 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
 
   for( localIndex er=0 ; er<elemManager->numRegions() ; ++er )
   {
-    ElementRegion * const elemRegion = elemManager->GetRegion(er);
+    ElementRegionBase * const elemRegion = elemManager->GetRegion(er);
     for( localIndex esr=0 ; esr<elemRegion->numSubRegions() ; ++esr )
     {
       for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
