@@ -682,15 +682,15 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
   ElementRegionManager::ElementReferenceAccessor<localIndex_array> modElemsToSend;
   array1d< array1d <localIndex_array> > modElemsToSendData;
 
-  ManagedGroup *
+  Group *
    nodeNeighborData = nodeManager->GetGroup( nodeManager->groupKeys.neighborData )->
                       GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
-   ManagedGroup *
+   Group *
    edgeNeighborData = edgeManager->GetGroup( edgeManager->groupKeys.neighborData )->
                       GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
-   ManagedGroup *
+   Group *
    faceNeighborData = faceManager->GetGroup( faceManager->groupKeys.neighborData )->
                       GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
@@ -868,15 +868,15 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
   ElementRegionManager * const elemManager = mesh->getElemManager();
 
 
-  ManagedGroup *
+  Group *
    nodeNeighborData = nodeManager->GetGroup( nodeManager->groupKeys.neighborData )->
                       GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
-   ManagedGroup *
+   Group *
    edgeNeighborData = edgeManager->GetGroup( edgeManager->groupKeys.neighborData )->
                       GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
-   ManagedGroup *
+   Group *
    faceNeighborData = faceManager->GetGroup( faceManager->groupKeys.neighborData )->
                       GetGroup( std::to_string( neighbor->NeighborRank() ) );
 
