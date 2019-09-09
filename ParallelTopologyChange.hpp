@@ -1,8 +1,5 @@
-/*
- * ParallelTopologyChange.hpp
- *
- *  Created on: Sep 20, 2018
- *      Author: settgast1
+/**
+ * @file ParallelTopologyChange.hpp
  */
 
 #ifndef SRC_EXTERNALCOMPONENTS_HYDROFRACTURE_PARALLELTOPOLOGYCHANGE_HPP_

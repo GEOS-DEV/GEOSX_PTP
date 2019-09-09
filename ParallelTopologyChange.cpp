@@ -1,8 +1,5 @@
-/*
- * ParallelTopologyChange.cpp
- *
- *  Created on: Sep 20, 2018
- *      Author: settgast1
+/**
+ * @file ParallelTopologyChange.cpp
  */
 
 #include "ParallelTopologyChange.hpp"
