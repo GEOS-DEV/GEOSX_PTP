@@ -3,10 +3,11 @@
  */
 
 #include "ParallelTopologyChange.hpp"
+
 #include "common/GeosxMacros.hpp"
 #include "common/TimingMacros.hpp"
-#include "MPI_Communications/CommunicationTools.hpp"
 #include "mesh/ElementRegionManager.hpp"
+#include "mpiCommunications/CommunicationTools.hpp"
 
 
 namespace geosx
