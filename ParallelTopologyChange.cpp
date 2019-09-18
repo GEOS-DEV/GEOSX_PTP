@@ -1010,7 +1010,7 @@ void ParallelTopologyChange::updateConnectorsToFaceElems( std::set<localIndex> c
       auto connIter = edgesToConnectorEdges.find(edgeIndex);
       if( connIter==edgesToConnectorEdges.end() )
       {
-        connectorToElem.resize( connectorToElem.size() + 1 );
+        connectorToElem.appendArray( 0 );
         connectorEdgesToEdges.push_back(edgeIndex);
         edgesToConnectorEdges[edgeIndex] = connectorEdgesToEdges.size() - 1;
       }
