@@ -80,13 +80,18 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
   for( unsigned int count=0 ; count<neighbors.size() ; ++count )
   {
 
-    int neighborIndex;
-    MPI_Waitany( commData.size,
-                 commData.mpiRecvBufferRequest.data(),
-                 &neighborIndex,
-                 commData.mpiRecvBufferStatus.data() );
+    // int neighborIndex;
+    // MPI_Waitany( commData.size,
+    //              commData.mpiRecvBufferRequest.data(),
+    //              &neighborIndex,
+    //              commData.mpiRecvBufferStatus.data() );
 
-    NeighborCommunicator& neighbor = neighbors[neighborIndex];
+    // NeighborCommunicator& neighbor = neighbors[neighborIndex];
+
+    MPI_Wait(commData.mpiRecvBufferRequest.data() + count, 
+             commData.mpiRecvBufferStatus.data() + count);
+    NeighborCommunicator& neighbor = neighbors[count];
+
     UnpackNewAndModifiedObjectsOnOwningRanks( &neighbor,
                                               mesh,
                                               commData.commID,
@@ -160,13 +165,18 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
 
   for( unsigned int count=0 ; count<neighbors.size() ; ++count )
   {
-    int neighborIndex;
-    MPI_Waitany( commData2.size,
-                 commData2.mpiRecvBufferRequest.data(),
-                 &neighborIndex,
-                 commData2.mpiRecvBufferStatus.data() );
+    // int neighborIndex;
+    // MPI_Waitany( commData2.size,
+    //              commData2.mpiRecvBufferRequest.data(),
+    //              &neighborIndex,
+    //              commData2.mpiRecvBufferStatus.data() );
 
-    NeighborCommunicator& neighbor = neighbors[neighborIndex];
+    // NeighborCommunicator& neighbor = neighbors[neighborIndex];
+
+    MPI_Wait(commData2.mpiRecvBufferRequest.data() + count, 
+             commData2.mpiRecvBufferStatus.data() + count);
+    NeighborCommunicator& neighbor = neighbors[count];
+
     UnpackNewModToGhosts( &neighbor, commData2.commID, mesh, receivedObjects );
   }
 
