@@ -19,10 +19,11 @@ public:
   ParallelTopologyChange();
   ~ParallelTopologyChange();
 
-  static void SyncronizeTopologyChange( MeshLevel * const mesh,
+  static void SynchronizeTopologyChange( MeshLevel * const mesh,
                                         array1d<NeighborCommunicator> & neighbors,
                                         ModifiedObjectLists & modifiedObjects,
-                                        ModifiedObjectLists & receivedObjects );
+                                        ModifiedObjectLists & receivedObjects,
+                                        int mpiCommOrder );
 
   static void PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
                                                       MeshLevel * const meshLevel,
