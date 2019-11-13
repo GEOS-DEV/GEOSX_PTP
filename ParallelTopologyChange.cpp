@@ -23,10 +23,11 @@ ParallelTopologyChange::~ParallelTopologyChange()
 {
 }
 
-void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
+void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
                                                        array1d<NeighborCommunicator> & neighbors,
                                                        ModifiedObjectLists & modifiedObjects,
-                                                       ModifiedObjectLists & receivedObjects )
+                                                       ModifiedObjectLists & receivedObjects,
+                                                       int mpiCommOrder )
 {
 
   NodeManager * const nodeManager = mesh->getNodeManager();
@@ -80,13 +81,24 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
   for( unsigned int count=0 ; count<neighbors.size() ; ++count )
   {
 
-    int neighborIndex;
-    MPI_Waitany( commData.size,
-                 commData.mpiRecvBufferRequest.data(),
-                 &neighborIndex,
-                 commData.mpiRecvBufferStatus.data() );
+    int neighborIndex = count;
+    if (mpiCommOrder == 0)
+    {
+      MPI_Waitany( commData.size,
+                   commData.mpiRecvBufferRequest.data(),
+                   &neighborIndex,
+                   commData.mpiRecvBufferStatus.data() );
+    }
+
+    // Unpack buffers in set ordering for integration testing
+    else 
+    {
+      MPI_Wait(commData.mpiRecvBufferRequest.data() + count, 
+               commData.mpiRecvBufferStatus.data() + count);
+    }
 
     NeighborCommunicator& neighbor = neighbors[neighborIndex];
+    
     UnpackNewAndModifiedObjectsOnOwningRanks( &neighbor,
                                               mesh,
                                               commData.commID,
@@ -160,13 +172,25 @@ void ParallelTopologyChange::SyncronizeTopologyChange( MeshLevel * const mesh,
 
   for( unsigned int count=0 ; count<neighbors.size() ; ++count )
   {
-    int neighborIndex;
-    MPI_Waitany( commData2.size,
-                 commData2.mpiRecvBufferRequest.data(),
-                 &neighborIndex,
-                 commData2.mpiRecvBufferStatus.data() );
+
+    int neighborIndex = count;
+    if (mpiCommOrder == 0)
+    {
+      MPI_Waitany( commData2.size,
+                   commData2.mpiRecvBufferRequest.data(),
+                   &neighborIndex,
+                   commData2.mpiRecvBufferStatus.data() );
+    }
+
+    else
+    {
+      MPI_Wait(commData2.mpiRecvBufferRequest.data() + count, 
+               commData2.mpiRecvBufferStatus.data() + count);
+    }
 
     NeighborCommunicator& neighbor = neighbors[neighborIndex];
+
+
     UnpackNewModToGhosts( &neighbor, commData2.commID, mesh, receivedObjects );
   }
 
