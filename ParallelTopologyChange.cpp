@@ -64,10 +64,10 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
   for( unsigned int count=0 ; count<neighbors.size() ; ++count )
   {
     int neighborIndex;
-    MPI_Waitany( commData.size,
-                 commData.mpiSizeRecvBufferRequest.data(),
-                 &neighborIndex,
-                 commData.mpiSizeRecvBufferStatus.data() );
+    MpiWrapper::Waitany( commData.size,
+                         commData.mpiSizeRecvBufferRequest.data(),
+                         &neighborIndex,
+                         commData.mpiSizeRecvBufferStatus.data() );
 
     NeighborCommunicator& neighbor = neighbors[neighborIndex];
 
@@ -84,17 +84,17 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
     int neighborIndex = count;
     if (mpiCommOrder == 0)
     {
-      MPI_Waitany( commData.size,
-                   commData.mpiRecvBufferRequest.data(),
-                   &neighborIndex,
-                   commData.mpiRecvBufferStatus.data() );
+      MpiWrapper::Waitany( commData.size,
+                           commData.mpiRecvBufferRequest.data(),
+                           &neighborIndex,
+                           commData.mpiRecvBufferStatus.data() );
     }
 
     // Unpack buffers in set ordering for integration testing
     else 
     {
-      MPI_Wait(commData.mpiRecvBufferRequest.data() + count, 
-               commData.mpiRecvBufferStatus.data() + count);
+      MpiWrapper::Wait( commData.mpiRecvBufferRequest.data() + count, 
+                        commData.mpiRecvBufferStatus.data() + count );
     }
 
     NeighborCommunicator& neighbor = neighbors[neighborIndex];
@@ -117,13 +117,13 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
     subRegion->inheritGhostRankFromParentFace( faceManager, receivedObjects.newElements[{er,esr}] );
   });
 
-  MPI_Waitall( commData.size,
-               commData.mpiSizeSendBufferRequest.data(),
-               commData.mpiSizeSendBufferStatus.data() );
+  MpiWrapper::Waitall( commData.size,
+                       commData.mpiSizeSendBufferRequest.data(),
+                       commData.mpiSizeSendBufferStatus.data() );
 
-  MPI_Waitall( commData.size,
-               commData.mpiSendBufferRequest.data(),
-               commData.mpiSizeSendBufferStatus.data() );
+  MpiWrapper::Waitall( commData.size,
+                       commData.mpiSendBufferRequest.data(),
+                       commData.mpiSizeSendBufferStatus.data() );
 
   modifiedObjects.insert( receivedObjects );
 
@@ -156,10 +156,10 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
   for( unsigned int count=0 ; count<neighbors.size() ; ++count )
   {
     int neighborIndex;
-    MPI_Waitany( commData2.size,
-                 commData2.mpiSizeRecvBufferRequest.data(),
-                 &neighborIndex,
-                 commData2.mpiSizeRecvBufferStatus.data() );
+    MpiWrapper::Waitany( commData2.size,
+                         commData2.mpiSizeRecvBufferRequest.data(),
+                         &neighborIndex,
+                         commData2.mpiSizeRecvBufferStatus.data() );
 
     NeighborCommunicator& neighbor = neighbors[neighborIndex];
 
@@ -176,16 +176,16 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
     int neighborIndex = count;
     if (mpiCommOrder == 0)
     {
-      MPI_Waitany( commData2.size,
-                   commData2.mpiRecvBufferRequest.data(),
-                   &neighborIndex,
-                   commData2.mpiRecvBufferStatus.data() );
+      MpiWrapper::Waitany( commData2.size,
+                           commData2.mpiRecvBufferRequest.data(),
+                           &neighborIndex,
+                           commData2.mpiRecvBufferStatus.data() );
     }
 
     else
     {
-      MPI_Wait(commData2.mpiRecvBufferRequest.data() + count, 
-               commData2.mpiRecvBufferStatus.data() + count);
+      MpiWrapper::Wait( commData2.mpiRecvBufferRequest.data() + count, 
+                        commData2.mpiRecvBufferStatus.data() + count );
     }
 
     NeighborCommunicator& neighbor = neighbors[neighborIndex];
