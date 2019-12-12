@@ -509,7 +509,7 @@ PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
   packedSize += faceManager.Pack( sendBufferPtr, {}, modFacePackListArray, 0 );
 
 
-  GEOS_ERROR_IF( bufferSize != packedSize,
+  GEOSX_ERROR_IF( bufferSize != packedSize,
                  "Allocated Buffer Size ("<<bufferSize<<") is not equal to packed buffer size("<<packedSize<<")" );
 
 
@@ -862,7 +862,7 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
   packedSize += faceManager->PackParentChildMaps( sendBufferPtr, modFacesToSend );
 
 
-  GEOS_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
+  GEOSX_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
 
   neighbor->MPI_iSendReceive( commID, MPI_COMM_GEOSX );
 
