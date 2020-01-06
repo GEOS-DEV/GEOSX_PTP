@@ -24,7 +24,7 @@ ParallelTopologyChange::~ParallelTopologyChange()
 }
 
 void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
-                                                        std::vector<NeighborCommunicator> & neighbors,
+                                                        array1d<NeighborCommunicator> & neighbors,
                                                         ModifiedObjectLists & modifiedObjects,
                                                         ModifiedObjectLists & receivedObjects,
                                                         int mpiCommOrder )
