@@ -111,7 +111,7 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
 
   elemManager->forElementSubRegionsComplete<FaceElementSubRegion>( [&]( localIndex const er,
                                                                         localIndex const esr,
-                                                                        ElementRegionBase const * const GEOSX_UNUSED_ARG( elemRegion ),
+                                                                        ElementRegionBase const * const GEOSX_UNUSED_PARAM( elemRegion ),
                                                                         FaceElementSubRegion * const subRegion )
   {
     subRegion->inheritGhostRankFromParentFace( faceManager, receivedObjects.newElements[{er,esr}] );
@@ -213,7 +213,7 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
 
   elemManager->forElementSubRegionsComplete<FaceElementSubRegion>([&]( localIndex const er,
                                                                        localIndex const esr,
-                                                                       ElementRegionBase const * const GEOSX_UNUSED_ARG( elemRegion ),
+                                                                       ElementRegionBase const * const GEOSX_UNUSED_PARAM( elemRegion ),
                                                                        FaceElementSubRegion const * const subRegion )
   {
     updateConnectorsToFaceElems( receivedObjects.newElements.at({er,esr}),
