@@ -749,7 +749,7 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
   FilterNewObjectsForPackToGhosts( receivedObjects.newFaces, faceParentIndices, faceGhostsToSend, newFacesToSend );
   FilterModObjectsForPackToGhosts( receivedObjects.modifiedFaces, faceGhostsToSend, modFacesToSend );
 
-  set<localIndex> faceGhostsToSendSet;
+  SortedArray<localIndex> faceGhostsToSendSet;
   for( localIndex const & kf : faceGhostsToSend )
   {
     faceGhostsToSendSet.insert(kf);
