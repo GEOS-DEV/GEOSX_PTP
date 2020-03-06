@@ -108,7 +108,7 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
 
   elemManager->forElementSubRegionsComplete< FaceElementSubRegion >( [&]( localIndex const er,
                                                                           localIndex const esr,
-                                                                          ElementRegionBase const * const GEOSX_UNUSED_PARAM( elemRegion ),
+                                                                          ElementRegionBase const *,
                                                                           FaceElementSubRegion * const subRegion )
   {
     subRegion->inheritGhostRankFromParentFace( faceManager, receivedObjects.newElements[{er, esr}] );
@@ -209,7 +209,7 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
 
   elemManager->forElementSubRegionsComplete< FaceElementSubRegion >( [&]( localIndex const er,
                                                                           localIndex const esr,
-                                                                          ElementRegionBase const * const GEOSX_UNUSED_PARAM( elemRegion ),
+                                                                          ElementRegionBase const * const,
                                                                           FaceElementSubRegion const * const subRegion )
   {
     updateConnectorsToFaceElems( receivedObjects.newElements.at( {er, esr} ),
@@ -683,34 +683,11 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
   ElementRegionManager::ElementReferenceAccessor< localIndex_array > modElemsToSend;
   array1d< array1d< localIndex_array > > modElemsToSendData;
 
-  Group *
-    nodeNeighborData = nodeManager->GetGroup( nodeManager->groupKeys.neighborData )->
-                         GetGroup( std::to_string( neighbor->NeighborRank() ) );
+  localIndex_array & nodeGhostsToSend = nodeManager->getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
 
-  Group *
-    edgeNeighborData = edgeManager->GetGroup( edgeManager->groupKeys.neighborData )->
-                         GetGroup( std::to_string( neighbor->NeighborRank() ) );
+  localIndex_array & edgeGhostsToSend = edgeManager->getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
 
-  Group *
-    faceNeighborData = faceManager->GetGroup( faceManager->groupKeys.neighborData )->
-                         GetGroup( std::to_string( neighbor->NeighborRank() ) );
-
-  localIndex_array &
-  nodeGhostsToSend = nodeNeighborData->getReference< localIndex_array >( nodeManager->viewKeys.ghostsToSend );
-
-  localIndex_array &
-  edgeGhostsToSend = edgeNeighborData->getReference< localIndex_array >( nodeManager->viewKeys.ghostsToSend );
-
-  localIndex_array &
-  faceGhostsToSend = faceNeighborData->getReference< localIndex_array >( faceManager->viewKeys.ghostsToSend );
-
-  ElementRegionManager::ElementReferenceAccessor< localIndex_array >
-  elementGhostToSend =
-    elemManager->ConstructReferenceAccessor< localIndex_array >( ObjectManagerBase::
-                                                                   viewKeyStruct::
-                                                                   ghostsToSendString,
-                                                                 std::to_string( neighbor->NeighborRank() ) );
-
+  localIndex_array & faceGhostsToSend = faceManager->getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
 
   localIndex_array const &
   nodalParentIndices = nodeManager->getReference< localIndex_array >( nodeManager->
@@ -755,30 +732,34 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
     modElemsToSend[er].resize( elemRegion->numSubRegions() );
 
     elemRegion->forElementSubRegionsIndex< FaceElementSubRegion >( [&]( localIndex const esr,
-                                                                        FaceElementSubRegion const * const subRegion )
+                                                                        FaceElementSubRegion * const subRegion )
     {
       FaceElementSubRegion::FaceMapType const & faceList = subRegion->faceList();
+      localIndex_array & elemGhostsToSend = subRegion->getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
       for( localIndex const & k : receivedObjects.newElements.at( {er, esr} ) )
       {
         if( faceGhostsToSendSet.count( faceList( k, 0 ) ) )
         {
           newElemsToSendData[er][esr].push_back( k );
-          elementGhostToSend[er][esr].get().push_back( k );
+          elemGhostsToSend.push_back( k );
         }
       }
       newElemsToSend[er][esr] = newElemsToSendData[er][esr];
     } );
-    for( localIndex esr=0; esr<elemRegion->numSubRegions(); ++esr )
+
+    elemRegion->forElementSubRegionsIndex< ElementSubRegionBase >( [&]( localIndex const esr,
+                                                                        ElementSubRegionBase const * const subRegion )
     {
       modElemsToSend[er][esr].set( modElemsToSendData[er][esr] );
-      for( localIndex a=0; a<elementGhostToSend[er][esr].get().size(); ++a )
+      arrayView1d< localIndex const > const & elemGhostsToSend = subRegion->getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
+      for( localIndex const ghostToSend : elemGhostsToSend )
       {
-        if( receivedObjects.modifiedElements.at( {er, esr} ).count( elementGhostToSend[er][esr][a] ) > 0 )
+        if( receivedObjects.modifiedElements.at( { er, esr } ).count( ghostToSend ) > 0 )
         {
-          modElemsToSendData[er][esr].push_back( elementGhostToSend[er][esr][a] );
+          modElemsToSendData[er][esr].push_back( ghostToSend );
         }
       }
-    }
+    } );
   }
 
 
@@ -852,8 +833,6 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
   GEOSX_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
 
   neighbor->MPI_iSendReceive( commID, MPI_COMM_GEOSX );
-
-
 }
 
 void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const neighbor,
@@ -868,36 +847,11 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
   FaceManager * const faceManager = mesh->getFaceManager();
   ElementRegionManager * const elemManager = mesh->getElemManager();
 
+  localIndex_array & nodeGhostsToRecv = nodeManager->getNeighborData( neighbor->NeighborRank() ).ghostsToReceive();
 
-  Group *
-    nodeNeighborData = nodeManager->GetGroup( nodeManager->groupKeys.neighborData )->
-                         GetGroup( std::to_string( neighbor->NeighborRank() ) );
+  localIndex_array & edgeGhostsToRecv = edgeManager->getNeighborData( neighbor->NeighborRank() ).ghostsToReceive();
 
-  Group *
-    edgeNeighborData = edgeManager->GetGroup( edgeManager->groupKeys.neighborData )->
-                         GetGroup( std::to_string( neighbor->NeighborRank() ) );
-
-  Group *
-    faceNeighborData = faceManager->GetGroup( faceManager->groupKeys.neighborData )->
-                         GetGroup( std::to_string( neighbor->NeighborRank() ) );
-
-  localIndex_array &
-  nodeGhostsToRecv = nodeNeighborData->getReference< localIndex_array >( nodeManager->viewKeys.ghostsToReceive );
-
-  localIndex_array &
-  edgeGhostsToRecv = edgeNeighborData->getReference< localIndex_array >( nodeManager->viewKeys.ghostsToReceive );
-
-  localIndex_array &
-  faceGhostsToRecv = faceNeighborData->getReference< localIndex_array >( faceManager->viewKeys.ghostsToReceive );
-
-  ElementRegionManager::ElementReferenceAccessor< localIndex_array >
-  elementGhostToReceive =
-    elemManager->ConstructReferenceAccessor< localIndex_array >( ObjectManagerBase::
-                                                                   viewKeyStruct::
-                                                                   ghostsToReceiveString,
-                                                                 std::to_string( neighbor->NeighborRank() ) );
-
-
+  localIndex_array & faceGhostsToRecv = faceManager->getNeighborData( neighbor->NeighborRank() ).ghostsToReceive();
 
   buffer_type const & receiveBuffer = neighbor->ReceiveBuffer( commID );
   buffer_unit_type const * receiveBufferPtr = receiveBuffer.data();
@@ -977,21 +931,19 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
     faceGhostsToRecv.push_back( newGhostFaces[a] );
   }
 
-  for( localIndex er=0; er<elemManager->numRegions(); ++er )
+  elemManager->forElementSubRegionsComplete< ElementSubRegionBase >(
+    [&]( localIndex const er, localIndex const esr, ElementRegionBase *, ElementSubRegionBase * const subRegion )
   {
-    ElementRegionBase * const elemRegion = elemManager->GetRegion( er );
-    for( localIndex esr=0; esr<elemRegion->numSubRegions(); ++esr )
+    localIndex_array & elemGhostsToReceive = subRegion->getNeighborData( neighbor->NeighborRank() ).ghostsToReceive();
+    for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
     {
-      for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
-      {
-        elementGhostToReceive[er][esr].get().push_back( newElemIndex );
-        receivedObjects.newElements[{er, esr}].insert( newElemIndex );
-      }
-      receivedObjects.modifiedElements[{er, esr}].insert( modGhostElemsData[er][esr].begin(),
-                                                          modGhostElemsData[er][esr].end() );
+      elemGhostsToReceive.push_back( newElemIndex );
+      receivedObjects.newElements[ { er, esr } ].insert( newElemIndex );
     }
-  }
 
+    receivedObjects.modifiedElements[ { er, esr } ].insert( modGhostElemsData[er][esr].begin(),
+                                                            modGhostElemsData[er][esr].end() );
+  } );
 
   receivedObjects.newNodes.insert( newGhostNodes.begin(), newGhostNodes.end() );
   receivedObjects.modifiedNodes.insert( modGhostNodes.begin(), modGhostNodes.end() );
