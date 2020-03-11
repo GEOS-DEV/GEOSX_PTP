@@ -260,9 +260,9 @@ ParallelTopologyChange::
   FaceManager & faceManager = *(meshLevel->getFaceManager());
   ElementRegionManager & elemManager = *(meshLevel->getElemManager() );
 
-  array1d< integer > const & nodeGhostRank = nodeManager.GhostRank();
-  array1d< integer > const & edgeGhostRank = edgeManager.GhostRank();
-  array1d< integer > const & faceGhostRank = faceManager.GhostRank();
+  arrayView1d< integer > const & nodeGhostRank = nodeManager.ghostRank();
+  arrayView1d< integer > const & edgeGhostRank = edgeManager.ghostRank();
+  arrayView1d< integer > const & faceGhostRank = faceManager.ghostRank();
 
   arrayView1d< localIndex > const &
   parentNodeIndices = nodeManager.getReference< array1d< localIndex > >( nodeManager.viewKeys.parentIndex );
@@ -383,7 +383,7 @@ ParallelTopologyChange::
     for( localIndex esr=0; esr<elemRegion->numSubRegions(); ++esr )
     {
       ElementSubRegionBase * const subRegion = elemRegion->GetSubRegion( esr );
-      integer_array const & subRegionGhostRank = subRegion->GhostRank();
+      arrayView1d< integer > const & subRegionGhostRank = subRegion->ghostRank();
       if( modifiedObjects.modifiedElements.count( {er, esr} ) > 0 )
       {
         std::set< localIndex > const & elemList = modifiedObjects.modifiedElements.at( {er, esr} );
