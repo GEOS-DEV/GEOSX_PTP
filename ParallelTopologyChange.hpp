@@ -20,7 +20,7 @@ public:
   ~ParallelTopologyChange();
 
   static void SynchronizeTopologyChange( MeshLevel * const mesh,
-                                         std::vector<NeighborCommunicator> & neighbors,
+                                         std::vector< NeighborCommunicator > & neighbors,
                                          ModifiedObjectLists & modifiedObjects,
                                          ModifiedObjectLists & receivedObjects,
                                          int mpiCommOrder );
@@ -37,9 +37,9 @@ public:
                                             ModifiedObjectLists & receivedObjects );
 
   static void PackNewModifiedObjectsToGhosts( NeighborCommunicator * const neighbor,
-                                  int commID,
-                                  MeshLevel * const mesh,
-                                  ModifiedObjectLists & receivedObjects );
+                                              int commID,
+                                              MeshLevel * const mesh,
+                                              ModifiedObjectLists & receivedObjects );
 
   static void UnpackNewModToGhosts( NeighborCommunicator * const neighbor,
                                     int commID,
@@ -47,9 +47,9 @@ public:
                                     ModifiedObjectLists & receivedObjects );
 
 
-  static void updateConnectorsToFaceElems( std::set<localIndex> const & newFaceElements,
+  static void updateConnectorsToFaceElems( std::set< localIndex > const & newFaceElements,
                                            FaceElementSubRegion const * const faceElemSubRegion,
-                                           EdgeManager * const edgeManager  );
+                                           EdgeManager * const edgeManager );
 
 };
 
