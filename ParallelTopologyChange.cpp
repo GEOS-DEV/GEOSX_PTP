@@ -108,10 +108,10 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
 
   elemManager->forElementSubRegionsComplete< FaceElementSubRegion >( [&]( localIndex const er,
                                                                           localIndex const esr,
-                                                                          ElementRegionBase const *,
-                                                                          FaceElementSubRegion * const subRegion )
+                                                                          ElementRegionBase &,
+                                                                          FaceElementSubRegion & subRegion )
   {
-    subRegion->inheritGhostRankFromParentFace( faceManager, receivedObjects.newElements[{er, esr}] );
+    subRegion.inheritGhostRankFromParentFace( faceManager, receivedObjects.newElements[{er, esr}] );
   } );
 
   MpiWrapper::Waitall( commData.size,
@@ -209,11 +209,11 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
 
   elemManager->forElementSubRegionsComplete< FaceElementSubRegion >( [&]( localIndex const er,
                                                                           localIndex const esr,
-                                                                          ElementRegionBase const * const,
-                                                                          FaceElementSubRegion const * const subRegion )
+                                                                          ElementRegionBase const &,
+                                                                          FaceElementSubRegion const & subRegion )
   {
     updateConnectorsToFaceElems( receivedObjects.newElements.at( {er, esr} ),
-                                 subRegion,
+                                 &subRegion,
                                  edgeManager );
   } );
 
@@ -732,10 +732,10 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
     modElemsToSend[er].resize( elemRegion->numSubRegions() );
 
     elemRegion->forElementSubRegionsIndex< FaceElementSubRegion >( [&]( localIndex const esr,
-                                                                        FaceElementSubRegion * const subRegion )
+                                                                        FaceElementSubRegion & subRegion )
     {
-      FaceElementSubRegion::FaceMapType const & faceList = subRegion->faceList();
-      localIndex_array & elemGhostsToSend = subRegion->getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
+      FaceElementSubRegion::FaceMapType const & faceList = subRegion.faceList();
+      localIndex_array & elemGhostsToSend = subRegion.getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
       for( localIndex const & k : receivedObjects.newElements.at( {er, esr} ) )
       {
         if( faceGhostsToSendSet.count( faceList( k, 0 ) ) )
@@ -748,10 +748,10 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
     } );
 
     elemRegion->forElementSubRegionsIndex< ElementSubRegionBase >( [&]( localIndex const esr,
-                                                                        ElementSubRegionBase const * const subRegion )
+                                                                        ElementSubRegionBase const & subRegion )
     {
       modElemsToSend[er][esr].set( modElemsToSendData[er][esr] );
-      arrayView1d< localIndex const > const & elemGhostsToSend = subRegion->getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
+      arrayView1d< localIndex const > const & elemGhostsToSend = subRegion.getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
       for( localIndex const ghostToSend : elemGhostsToSend )
       {
         if( receivedObjects.modifiedElements.at( { er, esr } ).count( ghostToSend ) > 0 )
@@ -932,9 +932,9 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
   }
 
   elemManager->forElementSubRegionsComplete< ElementSubRegionBase >(
-    [&]( localIndex const er, localIndex const esr, ElementRegionBase *, ElementSubRegionBase * const subRegion )
+    [&]( localIndex const er, localIndex const esr, ElementRegionBase &, ElementSubRegionBase & subRegion )
   {
-    localIndex_array & elemGhostsToReceive = subRegion->getNeighborData( neighbor->NeighborRank() ).ghostsToReceive();
+    localIndex_array & elemGhostsToReceive = subRegion.getNeighborData( neighbor->NeighborRank() ).ghostsToReceive();
     for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
     {
       elemGhostsToReceive.push_back( newElemIndex );
