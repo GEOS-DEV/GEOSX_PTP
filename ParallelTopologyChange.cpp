@@ -223,14 +223,14 @@ void ParallelTopologyChange::SynchronizeTopologyChange( MeshLevel * const mesh,
   allTouchedNodes.insert( modifiedObjects.modifiedNodes.begin(), modifiedObjects.modifiedNodes.end() );
   nodeManager->depopulateUpMaps( allTouchedNodes,
                                  edgeManager->nodeList(),
-                                 faceManager->nodeList(),
+                                 faceManager->nodeList().toViewConst(),
                                  *elemManager );
 
   std::set< localIndex > allTouchedEdges;
   allTouchedEdges.insert( modifiedObjects.newEdges.begin(), modifiedObjects.newEdges.end() );
   allTouchedEdges.insert( modifiedObjects.modifiedEdges.begin(), modifiedObjects.modifiedEdges.end() );
   edgeManager->depopulateUpMaps( allTouchedEdges,
-                                 faceManager->edgeList() );
+                                 faceManager->edgeList().toViewConst() );
 
   std::set< localIndex > allTouchedFaces;
   allTouchedFaces.insert( modifiedObjects.newFaces.begin(), modifiedObjects.newFaces.end() );
