@@ -640,8 +640,8 @@ static void FilterNewObjectsForPackToGhosts( std::set< localIndex > const & obje
     {
       if( ghostsToSend[a]==parentIndex )
       {
-        objectsToSend.push_back( index );
-        ghostsToSend.push_back( index );
+        objectsToSend.emplace_back( index );
+        ghostsToSend.emplace_back( index );
         break;
       }
     }
@@ -656,7 +656,7 @@ static void FilterModObjectsForPackToGhosts( std::set< localIndex > const & obje
   {
     if( objectList.count( ghostsToSend[a] ) > 0 )
     {
-      objectsToSend.push_back( ghostsToSend[a] );
+      objectsToSend.emplace_back( ghostsToSend[a] );
     }
   }
 }
@@ -740,8 +740,8 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
       {
         if( faceGhostsToSendSet.count( faceList( k, 0 ) ) )
         {
-          newElemsToSendData[er][esr].push_back( k );
-          elemGhostsToSend.push_back( k );
+          newElemsToSendData[er][esr].emplace_back( k );
+          elemGhostsToSend.emplace_back( k );
         }
       }
       newElemsToSend[er][esr] = newElemsToSendData[er][esr];
@@ -756,7 +756,7 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
       {
         if( receivedObjects.modifiedElements.at( { er, esr } ).count( ghostToSend ) > 0 )
         {
-          modElemsToSendData[er][esr].push_back( ghostToSend );
+          modElemsToSendData[er][esr].emplace_back( ghostToSend );
         }
       }
     } );
@@ -918,17 +918,17 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
 
   for( localIndex a=0; a<newGhostNodes.size(); ++a )
   {
-    nodeGhostsToRecv.push_back( newGhostNodes[a] );
+    nodeGhostsToRecv.emplace_back( newGhostNodes[a] );
   }
 
   for( localIndex a=0; a<newGhostEdges.size(); ++a )
   {
-    edgeGhostsToRecv.push_back( newGhostEdges[a] );
+    edgeGhostsToRecv.emplace_back( newGhostEdges[a] );
   }
 
   for( localIndex a=0; a<newGhostFaces.size(); ++a )
   {
-    faceGhostsToRecv.push_back( newGhostFaces[a] );
+    faceGhostsToRecv.emplace_back( newGhostFaces[a] );
   }
 
   elemManager->forElementSubRegionsComplete< ElementSubRegionBase >(
@@ -937,7 +937,7 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
     localIndex_array & elemGhostsToReceive = subRegion.getNeighborData( neighbor->NeighborRank() ).ghostsToReceive();
     for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
     {
-      elemGhostsToReceive.push_back( newElemIndex );
+      elemGhostsToReceive.emplace_back( newElemIndex );
       receivedObjects.newElements[ { er, esr } ].insert( newElemIndex );
     }
 
@@ -975,7 +975,7 @@ void ParallelTopologyChange::updateConnectorsToFaceElems( std::set< localIndex >
       if( connIter==edgesToConnectorEdges.end() )
       {
         connectorToElem.appendArray( 0 );
-        connectorEdgesToEdges.push_back( edgeIndex );
+        connectorEdgesToEdges.emplace_back( edgeIndex );
         edgesToConnectorEdges[edgeIndex] = connectorEdgesToEdges.size() - 1;
       }
       localIndex const connectorIndex = edgesToConnectorEdges.at( edgeIndex );
