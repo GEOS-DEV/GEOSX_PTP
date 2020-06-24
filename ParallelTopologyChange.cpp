@@ -7,6 +7,7 @@
 #include "common/GeosxMacros.hpp"
 #include "common/TimingMacros.hpp"
 #include "mesh/ElementRegionManager.hpp"
+#include "mesh/ExtrinsicMeshData.hpp"
 #include "mpiCommunications/CommunicationTools.hpp"
 
 
@@ -264,14 +265,9 @@ ParallelTopologyChange::
   arrayView1d< integer > const & edgeGhostRank = edgeManager.ghostRank();
   arrayView1d< integer > const & faceGhostRank = faceManager.ghostRank();
 
-  arrayView1d< localIndex > const &
-  parentNodeIndices = nodeManager.getReference< array1d< localIndex > >( nodeManager.viewKeys.parentIndex );
-
-  arrayView1d< localIndex > const &
-  parentEdgeIndices = edgeManager.getReference< array1d< localIndex > >( edgeManager.viewKeys.parentIndex );
-
-  arrayView1d< localIndex > const &
-  parentFaceIndices = faceManager.getReference< array1d< localIndex > >( faceManager.viewKeys.parentIndex );
+  arrayView1d< localIndex > const & parentNodeIndices = nodeManager.getExtrinsicData< extrinsicMeshData::ParentIndex >();
+  arrayView1d< localIndex > const & parentEdgeIndices = edgeManager.getExtrinsicData< extrinsicMeshData::ParentIndex >();
+  arrayView1d< localIndex > const & parentFaceIndices = faceManager.getExtrinsicData< extrinsicMeshData::ParentIndex >();
 
   int const neighborRank = neighbor->NeighborRank();
 
@@ -627,7 +623,7 @@ ParallelTopologyChange::
 
 
 static void FilterNewObjectsForPackToGhosts( std::set< localIndex > const & objectList,
-                                             localIndex_array const & parentIndices,
+                                             arrayView1d< localIndex > const & parentIndices,
                                              localIndex_array & ghostsToSend,
                                              localIndex_array & objectsToSend )
 {
@@ -687,25 +683,12 @@ void ParallelTopologyChange::PackNewModifiedObjectsToGhosts( NeighborCommunicato
   array1d< array1d< localIndex_array > > modElemsToSendData;
 
   localIndex_array & nodeGhostsToSend = nodeManager->getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
-
   localIndex_array & edgeGhostsToSend = edgeManager->getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
-
   localIndex_array & faceGhostsToSend = faceManager->getNeighborData( neighbor->NeighborRank() ).ghostsToSend();
 
-  localIndex_array const &
-  nodalParentIndices = nodeManager->getReference< localIndex_array >( nodeManager->
-                                                                        m_ObjectManagerBaseViewKeys.
-                                                                        parentIndex );
-
-  localIndex_array const &
-  edgeParentIndices = edgeManager->getReference< localIndex_array >( edgeManager->
-                                                                       m_ObjectManagerBaseViewKeys.
-                                                                       parentIndex );
-
-  localIndex_array const &
-  faceParentIndices = faceManager->getReference< localIndex_array >( faceManager->
-                                                                       m_ObjectManagerBaseViewKeys.
-                                                                       parentIndex );
+  arrayView1d< localIndex > const & nodalParentIndices = nodeManager->getExtrinsicData< extrinsicMeshData::ParentIndex >();
+  arrayView1d< localIndex > const & edgeParentIndices = edgeManager->getExtrinsicData< extrinsicMeshData::ParentIndex >();
+  arrayView1d< localIndex > const & faceParentIndices = faceManager->getExtrinsicData< extrinsicMeshData::ParentIndex >();
 
   FilterNewObjectsForPackToGhosts( receivedObjects.newNodes, nodalParentIndices, nodeGhostsToSend, newNodesToSend );
   FilterModObjectsForPackToGhosts( receivedObjects.modifiedNodes, nodeGhostsToSend, modNodesToSend );
