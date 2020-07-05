@@ -631,6 +631,8 @@ static void FilterNewObjectsForPackToGhosts( std::set< localIndex > const & obje
                                              localIndex_array & ghostsToSend,
                                              localIndex_array & objectsToSend )
 {
+
+  ghostsToSend.move( LvArray::MemorySpace::CPU );
   //TODO this needs to be inverted since the ghostToSend list should be much longer....
   // and the objectList is a searchable set.
   for( auto const index : objectList )
@@ -652,6 +654,7 @@ static void FilterModObjectsForPackToGhosts( std::set< localIndex > const & obje
                                              localIndex_array const & ghostsToSend,
                                              localIndex_array & objectsToSend )
 {
+  ghostsToSend.move( LvArray::MemorySpace::CPU );
   for( localIndex a=0; a<ghostsToSend.size(); ++a )
   {
     if( objectList.count( ghostsToSend[a] ) > 0 )
@@ -915,31 +918,49 @@ void ParallelTopologyChange::UnpackNewModToGhosts( NeighborCommunicator * const 
   unpackedSize += edgeManager->UnpackParentChildMaps( receiveBufferPtr, modGhostEdges );
   unpackedSize += faceManager->UnpackParentChildMaps( receiveBufferPtr, modGhostFaces );
 
-
-  for( localIndex a=0; a<newGhostNodes.size(); ++a )
+  if( newGhostNodes.size() > 0 )
   {
-    nodeGhostsToRecv.emplace_back( newGhostNodes[a] );
+    nodeGhostsToRecv.move( LvArray::MemorySpace::CPU );
+    for( localIndex a=0; a<newGhostNodes.size(); ++a )
+    {
+      nodeGhostsToRecv.emplace_back( newGhostNodes[a] );
+    }
   }
 
-  for( localIndex a=0; a<newGhostEdges.size(); ++a )
+  if( newGhostEdges.size() > 0 )
   {
-    edgeGhostsToRecv.emplace_back( newGhostEdges[a] );
+    edgeGhostsToRecv.move( LvArray::MemorySpace::CPU );
+    for( localIndex a=0; a<newGhostEdges.size(); ++a )
+    {
+      edgeGhostsToRecv.emplace_back( newGhostEdges[a] );
+    }
   }
 
-  for( localIndex a=0; a<newGhostFaces.size(); ++a )
+  if( newGhostFaces.size() > 0 )
   {
-    faceGhostsToRecv.emplace_back( newGhostFaces[a] );
+    faceGhostsToRecv.move( LvArray::MemorySpace::CPU );
+    for( localIndex a=0; a<newGhostFaces.size(); ++a )
+    {
+      faceGhostsToRecv.emplace_back( newGhostFaces[a] );
+    }
   }
 
   elemManager->forElementSubRegionsComplete< ElementSubRegionBase >(
     [&]( localIndex const er, localIndex const esr, ElementRegionBase &, ElementSubRegionBase & subRegion )
   {
     localIndex_array & elemGhostsToReceive = subRegion.getNeighborData( neighbor->NeighborRank() ).ghostsToReceive();
-    for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
+
+    if( newGhostElemsData[er][esr].size() > 0 )
     {
-      elemGhostsToReceive.emplace_back( newElemIndex );
-      receivedObjects.newElements[ { er, esr } ].insert( newElemIndex );
+      elemGhostsToReceive.move( LvArray::MemorySpace::CPU );
+
+      for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
+      {
+        elemGhostsToReceive.emplace_back( newElemIndex );
+        receivedObjects.newElements[ { er, esr } ].insert( newElemIndex );
+      }
     }
+
 
     receivedObjects.modifiedElements[ { er, esr } ].insert( modGhostElemsData[er][esr].begin(),
                                                             modGhostElemsData[er][esr].end() );
