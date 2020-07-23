@@ -9,7 +9,7 @@ set( componentHeaders "ParallelTopologyChange.hpp" )
 
 set( componentSources "ParallelTopologyChange.cpp" )
 
-set( dependencyList mesh )
+set( dependencyList mesh linearAlgebra )
 
 if ( ENABLE_OPENMP )
   set( dependencyList ${dependencyList} openmp )
