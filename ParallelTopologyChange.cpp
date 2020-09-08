@@ -966,11 +966,11 @@ void ParallelTopologyChange::updateConnectorsToFaceElems( std::set< localIndex >
   map< localIndex, localIndex > & edgesToConnectorEdges = edgeManager->m_edgesToFractureConnectorsEdges;
   array1d< localIndex > & connectorEdgesToEdges = edgeManager->m_fractureConnectorsEdgesToEdges;
 
-  arrayView1d< arrayView1d< localIndex const > const > const & facesToEdges = faceElemSubRegion->edgeList().toViewConst();
+  ArrayOfArraysView< localIndex const > const facesToEdges = faceElemSubRegion->edgeList().toViewConst();
 
   for( localIndex const & kfe : newFaceElements )
   {
-    arrayView1d< localIndex const > const & faceToEdges = facesToEdges[kfe];
+    arraySlice1d< localIndex const > const faceToEdges = facesToEdges[kfe];
     for( localIndex ke=0; ke<faceToEdges.size(); ++ke )
     {
       localIndex const edgeIndex = faceToEdges[ke];
