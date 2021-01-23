@@ -53,9 +53,9 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
                                             commData.commID );
 
     neighbor.mpiISendReceiveBufferSizes( commData.commID,
-                                          commData.mpiSizeSendBufferRequest[neighborIndex],
-                                          commData.mpiSizeRecvBufferRequest[neighborIndex],
-                                          MPI_COMM_GEOSX );
+                                         commData.mpiSizeSendBufferRequest[neighborIndex],
+                                         commData.mpiSizeRecvBufferRequest[neighborIndex],
+                                         MPI_COMM_GEOSX );
 
   }
 
@@ -71,9 +71,9 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
     NeighborCommunicator & neighbor = neighbors[neighborIndex];
 
     neighbor.mpiISendReceiveBuffers( commData.commID,
-                                      commData.mpiSendBufferRequest[neighborIndex],
-                                      commData.mpiRecvBufferRequest[neighborIndex],
-                                      MPI_COMM_GEOSX );
+                                     commData.mpiSendBufferRequest[neighborIndex],
+                                     commData.mpiRecvBufferRequest[neighborIndex],
+                                     MPI_COMM_GEOSX );
   }
 
   // unpack the buffers and get lists of the new objects.
@@ -145,9 +145,9 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
                                     modifiedObjects );
 
     neighbor.mpiISendReceiveBufferSizes( commData2.commID,
-                                          commData2.mpiSizeSendBufferRequest[neighborIndex],
-                                          commData2.mpiSizeRecvBufferRequest[neighborIndex],
-                                          MPI_COMM_GEOSX );
+                                         commData2.mpiSizeSendBufferRequest[neighborIndex],
+                                         commData2.mpiSizeRecvBufferRequest[neighborIndex],
+                                         MPI_COMM_GEOSX );
 
   }
 
@@ -162,9 +162,9 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
     NeighborCommunicator & neighbor = neighbors[neighborIndex];
 
     neighbor.mpiISendReceiveBuffers( commData2.commID,
-                                      commData2.mpiSendBufferRequest[neighborIndex],
-                                      commData2.mpiRecvBufferRequest[neighborIndex],
-                                      MPI_COMM_GEOSX );
+                                     commData2.mpiSendBufferRequest[neighborIndex],
+                                     commData2.mpiRecvBufferRequest[neighborIndex],
+                                     MPI_COMM_GEOSX );
   }
 
 
