@@ -19,29 +19,29 @@ public:
   ParallelTopologyChange();
   ~ParallelTopologyChange();
 
-  static void SynchronizeTopologyChange( MeshLevel * const mesh,
+  static void synchronizeTopologyChange( MeshLevel * const mesh,
                                          std::vector< NeighborCommunicator > & neighbors,
                                          ModifiedObjectLists & modifiedObjects,
                                          ModifiedObjectLists & receivedObjects,
                                          int mpiCommOrder );
 
-  static void PackNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
+  static void packNewAndModifiedObjectsToOwningRanks( NeighborCommunicator * const neighbor,
                                                       MeshLevel * const meshLevel,
                                                       ModifiedObjectLists const & modifiedObjects,
                                                       int const commID );
 
   static localIndex
-  UnpackNewAndModifiedObjectsOnOwningRanks( NeighborCommunicator * const neighbor,
+  unpackNewAndModifiedObjectsOnOwningRanks( NeighborCommunicator * const neighbor,
                                             MeshLevel * const mesh,
                                             int const commID,
                                             ModifiedObjectLists & receivedObjects );
 
-  static void PackNewModifiedObjectsToGhosts( NeighborCommunicator * const neighbor,
+  static void packNewModifiedObjectsToGhosts( NeighborCommunicator * const neighbor,
                                               int commID,
                                               MeshLevel * const mesh,
                                               ModifiedObjectLists & receivedObjects );
 
-  static void UnpackNewModToGhosts( NeighborCommunicator * const neighbor,
+  static void unpackNewModToGhosts( NeighborCommunicator * const neighbor,
                                     int commID,
                                     MeshLevel * const mesh,
                                     ModifiedObjectLists & receivedObjects );
