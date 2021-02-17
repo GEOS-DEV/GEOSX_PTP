@@ -421,8 +421,8 @@ ParallelTopologyChange::
     }
   }
 
-
-
+  // if we start packing sizing on device + async, poll for completion
+  parallelDeviceEvents noEvents;
   bufferSize += nodeManager.packGlobalMapsSize( newNodePackListArray, 0 );
   bufferSize += edgeManager.packGlobalMapsSize( newEdgePackListArray, 0 );
   bufferSize += faceManager.packGlobalMapsSize( newFacePackListArray, 0 );
@@ -437,9 +437,9 @@ ParallelTopologyChange::
   bufferSize += edgeManager.packParentChildMapsSize( newEdgePackListArray );
   bufferSize += faceManager.packParentChildMapsSize( newFacePackListArray );
 
-  bufferSize += nodeManager.packSize( {}, newNodePackListArray, 0 );
-  bufferSize += edgeManager.packSize( {}, newEdgePackListArray, 0 );
-  bufferSize += faceManager.packSize( {}, newFacePackListArray, 0 );
+  bufferSize += nodeManager.packSize( {}, newNodePackListArray, 0, false, noEvents );
+  bufferSize += edgeManager.packSize( {}, newEdgePackListArray, 0, false, noEvents );
+  bufferSize += faceManager.packSize( {}, newFacePackListArray, 0, false, noEvents );
   bufferSize += elemManager.PackSize( {}, newElemPackList );
 
   bufferSize += nodeManager.packUpDownMapsSize( modNodePackListArray );
@@ -451,16 +451,17 @@ ParallelTopologyChange::
   bufferSize += edgeManager.packParentChildMapsSize( modEdgePackListArray );
   bufferSize += faceManager.packParentChildMapsSize( modFacePackListArray );
 
-  bufferSize += nodeManager.packSize( {}, modNodePackListArray, 0 );
-  bufferSize += edgeManager.packSize( {}, modEdgePackListArray, 0 );
-  bufferSize += faceManager.packSize( {}, modFacePackListArray, 0 );
+  bufferSize += nodeManager.packSize( {}, modNodePackListArray, 0, false, noEvents );
+  bufferSize += edgeManager.packSize( {}, modEdgePackListArray, 0, false, noEvents );
+  bufferSize += faceManager.packSize( {}, modFacePackListArray, 0, false, noEvents );
 
-
+  // poll for size completion here
   neighbor->resizeSendBuffer( commID, bufferSize );
 
   buffer_type & sendBuffer = neighbor->sendBuffer( commID );
   buffer_unit_type * sendBufferPtr = sendBuffer.data();
 
+  // empty event buffer
   int packedSize = 0;
 
   packedSize += nodeManager.packGlobalMaps( sendBufferPtr, newNodePackListArray, 0 );
@@ -477,9 +478,9 @@ ParallelTopologyChange::
   packedSize += edgeManager.packParentChildMaps( sendBufferPtr, newEdgePackListArray );
   packedSize += faceManager.packParentChildMaps( sendBufferPtr, newFacePackListArray );
 
-  packedSize += nodeManager.pack( sendBufferPtr, {}, newNodePackListArray, 0 );
-  packedSize += edgeManager.pack( sendBufferPtr, {}, newEdgePackListArray, 0 );
-  packedSize += faceManager.pack( sendBufferPtr, {}, newFacePackListArray, 0 );
+  packedSize += nodeManager.pack( sendBufferPtr, {}, newNodePackListArray, 0, false, noEvents );
+  packedSize += edgeManager.pack( sendBufferPtr, {}, newEdgePackListArray, 0, false, noEvents );
+  packedSize += faceManager.pack( sendBufferPtr, {}, newFacePackListArray, 0, false, noEvents );
   packedSize += elemManager.Pack( sendBufferPtr, {}, newElemPackList );
 
   packedSize += nodeManager.packUpDownMaps( sendBufferPtr, modNodePackListArray );
@@ -491,10 +492,11 @@ ParallelTopologyChange::
   packedSize += edgeManager.packParentChildMaps( sendBufferPtr, modEdgePackListArray );
   packedSize += faceManager.packParentChildMaps( sendBufferPtr, modFacePackListArray );
 
-  packedSize += nodeManager.pack( sendBufferPtr, {}, modNodePackListArray, 0 );
-  packedSize += edgeManager.pack( sendBufferPtr, {}, modEdgePackListArray, 0 );
-  packedSize += faceManager.pack( sendBufferPtr, {}, modFacePackListArray, 0 );
+  packedSize += nodeManager.pack( sendBufferPtr, {}, modNodePackListArray, 0, false, noEvents );
+  packedSize += edgeManager.pack( sendBufferPtr, {}, modEdgePackListArray, 0, false, noEvents );
+  packedSize += faceManager.pack( sendBufferPtr, {}, modFacePackListArray, 0, false, noEvents );
 
+  // poll for pack completion here
 
   GEOSX_ERROR_IF( bufferSize != packedSize,
                   "Allocated Buffer Size ("<<bufferSize<<") is not equal to packed buffer size("<<packedSize<<")" );
@@ -550,8 +552,8 @@ ParallelTopologyChange::
     }
   }
 
-
-
+  // if we move to device + async packing here, add polling of events or pass out
+  parallelDeviceEvents noEvents;
   int unpackedSize = 0;
   unpackedSize += nodeManager->unpackGlobalMaps( receiveBufferPtr, newLocalNodes, 0 );
   unpackedSize += edgeManager->unpackGlobalMaps( receiveBufferPtr, newLocalEdges, 0 );
@@ -567,9 +569,9 @@ ParallelTopologyChange::
   unpackedSize += edgeManager->unpackParentChildMaps( receiveBufferPtr, newLocalEdges );
   unpackedSize += faceManager->unpackParentChildMaps( receiveBufferPtr, newLocalFaces );
 
-  unpackedSize += nodeManager->unpack( receiveBufferPtr, newLocalNodes, 0 );
-  unpackedSize += edgeManager->unpack( receiveBufferPtr, newLocalEdges, 0 );
-  unpackedSize += faceManager->unpack( receiveBufferPtr, newLocalFaces, 0 );
+  unpackedSize += nodeManager->unpack( receiveBufferPtr, newLocalNodes, 0, false, noEvents );
+  unpackedSize += edgeManager->unpack( receiveBufferPtr, newLocalEdges, 0, false, noEvents );
+  unpackedSize += faceManager->unpack( receiveBufferPtr, newLocalFaces, 0, false, noEvents );
   unpackedSize += elemManager->Unpack( receiveBufferPtr, newLocalElements );
 
   unpackedSize += nodeManager->unpackUpDownMaps( receiveBufferPtr, modifiedLocalNodes, false, true );
@@ -581,9 +583,9 @@ ParallelTopologyChange::
   unpackedSize += edgeManager->unpackParentChildMaps( receiveBufferPtr, modifiedLocalEdges );
   unpackedSize += faceManager->unpackParentChildMaps( receiveBufferPtr, modifiedLocalFaces );
 
-  unpackedSize += nodeManager->unpack( receiveBufferPtr, modifiedLocalNodes, 0 );
-  unpackedSize += edgeManager->unpack( receiveBufferPtr, modifiedLocalEdges, 0 );
-  unpackedSize += faceManager->unpack( receiveBufferPtr, modifiedLocalFaces, 0 );
+  unpackedSize += nodeManager->unpack( receiveBufferPtr, modifiedLocalNodes, 0, false, noEvents );
+  unpackedSize += edgeManager->unpack( receiveBufferPtr, modifiedLocalEdges, 0, false, noEvents );
+  unpackedSize += faceManager->unpack( receiveBufferPtr, modifiedLocalFaces, 0, false, noEvents );
 //    unpackedSize += elemManager->Unpack( receiveBufferPtr, modifiedElements );
 
 
@@ -748,7 +750,8 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
     } );
   }
 
-
+  // if we move to device + async packing/sizing, poll or pass out the events
+  parallelDeviceEvents noEvents;
   int bufferSize = 0;
 
   bufferSize += nodeManager->packGlobalMapsSize( newNodesToSend, 0 );
@@ -765,9 +768,9 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
   bufferSize += edgeManager->packParentChildMapsSize( newEdgesToSend );
   bufferSize += faceManager->packParentChildMapsSize( newFacesToSend );
 
-  bufferSize += nodeManager->packSize( {}, newNodesToSend, 0 );
-  bufferSize += edgeManager->packSize( {}, newEdgesToSend, 0 );
-  bufferSize += faceManager->packSize( {}, newFacesToSend, 0 );
+  bufferSize += nodeManager->packSize( {}, newNodesToSend, 0, false, noEvents );
+  bufferSize += edgeManager->packSize( {}, newEdgesToSend, 0, false, noEvents );
+  bufferSize += faceManager->packSize( {}, newFacesToSend, 0, false, noEvents );
   bufferSize += elemManager->PackSize( {}, newElemsToSend );
 
   bufferSize += nodeManager->packUpDownMapsSize( modNodesToSend );
@@ -779,12 +782,14 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
   bufferSize += edgeManager->packParentChildMapsSize( modEdgesToSend );
   bufferSize += faceManager->packParentChildMapsSize( modFacesToSend );
 
+  // poll size completion here
 
   neighbor->resizeSendBuffer( commID, bufferSize );
 
   buffer_type & sendBuffer = neighbor->sendBuffer( commID );
   buffer_unit_type * sendBufferPtr = sendBuffer.data();
 
+  // empty event buffer
   int packedSize = 0;
 
   packedSize += nodeManager->packGlobalMaps( sendBufferPtr, newNodesToSend, 0 );
@@ -801,9 +806,9 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
   packedSize += edgeManager->packParentChildMaps( sendBufferPtr, newEdgesToSend );
   packedSize += faceManager->packParentChildMaps( sendBufferPtr, newFacesToSend );
 
-  packedSize += nodeManager->pack( sendBufferPtr, {}, newNodesToSend, 0 );
-  packedSize += edgeManager->pack( sendBufferPtr, {}, newEdgesToSend, 0 );
-  packedSize += faceManager->pack( sendBufferPtr, {}, newFacesToSend, 0 );
+  packedSize += nodeManager->pack( sendBufferPtr, {}, newNodesToSend, 0, false, noEvents );
+  packedSize += edgeManager->pack( sendBufferPtr, {}, newEdgesToSend, 0, false, noEvents );
+  packedSize += faceManager->pack( sendBufferPtr, {}, newFacesToSend, 0, false, noEvents );
   packedSize += elemManager->Pack( sendBufferPtr, {}, newElemsToSend );
 
   packedSize += nodeManager->packUpDownMaps( sendBufferPtr, modNodesToSend );
@@ -815,9 +820,9 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
   packedSize += edgeManager->packParentChildMaps( sendBufferPtr, modEdgesToSend );
   packedSize += faceManager->packParentChildMaps( sendBufferPtr, modFacesToSend );
 
-
   GEOSX_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
 
+  // poll for pack completion before send/recv
   neighbor->mpiISendReceive( commID, MPI_COMM_GEOSX );
 }
 
@@ -872,6 +877,8 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
     }
   }
 
+  // if we move to device + async unoacking, poll these events for completion or pass out
+  parallelDeviceEvents noEvents;
 
   unpackedSize += nodeManager->unpackGlobalMaps( receiveBufferPtr, newGhostNodes, 0 );
   unpackedSize += edgeManager->unpackGlobalMaps( receiveBufferPtr, newGhostEdges, 0 );
@@ -887,9 +894,9 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
   unpackedSize += edgeManager->unpackParentChildMaps( receiveBufferPtr, newGhostEdges );
   unpackedSize += faceManager->unpackParentChildMaps( receiveBufferPtr, newGhostFaces );
 
-  unpackedSize += nodeManager->unpack( receiveBufferPtr, newGhostNodes, 0 );
-  unpackedSize += edgeManager->unpack( receiveBufferPtr, newGhostEdges, 0 );
-  unpackedSize += faceManager->unpack( receiveBufferPtr, newGhostFaces, 0 );
+  unpackedSize += nodeManager->unpack( receiveBufferPtr, newGhostNodes, 0, false, noEvents );
+  unpackedSize += edgeManager->unpack( receiveBufferPtr, newGhostEdges, 0, false, noEvents );
+  unpackedSize += faceManager->unpack( receiveBufferPtr, newGhostFaces, 0, false, noEvents );
   unpackedSize += elemManager->Unpack( receiveBufferPtr, newGhostElems );
 
   unpackedSize += nodeManager->unpackUpDownMaps( receiveBufferPtr, modGhostNodes, false, true );
@@ -900,6 +907,8 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
   unpackedSize += nodeManager->unpackParentChildMaps( receiveBufferPtr, modGhostNodes );
   unpackedSize += edgeManager->unpackParentChildMaps( receiveBufferPtr, modGhostEdges );
   unpackedSize += faceManager->unpackParentChildMaps( receiveBufferPtr, modGhostFaces );
+
+  // poll for unpacking event completion
 
   if( newGhostNodes.size() > 0 )
   {
@@ -943,7 +952,6 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
         receivedObjects.newElements[ { er, esr } ].insert( newElemIndex );
       }
     }
-
 
     receivedObjects.modifiedElements[ { er, esr } ].insert( modGhostElemsData[er][esr].begin(),
                                                             modGhostElemsData[er][esr].end() );
