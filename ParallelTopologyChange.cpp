@@ -198,13 +198,12 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
   faceManager->fixUpDownMaps( false );
 
 
-  for( localIndex er=0; er<elemManager->numRegions(); ++er )
+  for( localIndex er = 0; er < elemManager->numRegions(); ++er )
   {
-    ElementRegionBase * const elemRegion = elemManager->getRegion( er );
-    for( localIndex esr=0; esr<elemRegion->numSubRegions(); ++esr )
+    ElementRegionBase & elemRegion = elemManager->getRegion( er );
+    for( localIndex esr = 0; esr < elemRegion.numSubRegions(); ++esr )
     {
-      ElementSubRegionBase * const subRegion = elemRegion->getSubRegion( esr );
-      subRegion->fixUpDownMaps( false );
+      elemRegion.getSubRegion( esr ).fixUpDownMaps( false );
     }
   }
 
@@ -213,9 +212,7 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
                                                                           ElementRegionBase const &,
                                                                           FaceElementSubRegion const & subRegion )
   {
-    updateConnectorsToFaceElems( receivedObjects.newElements.at( {er, esr} ),
-                                 &subRegion,
-                                 edgeManager );
+    updateConnectorsToFaceElems( receivedObjects.newElements.at( {er, esr} ), subRegion, edgeManager );
   } );
 
 
@@ -371,15 +368,15 @@ ParallelTopologyChange::
   modElemData.resize( elemManager.numRegions());
   for( localIndex er=0; er<elemManager.numRegions(); ++er )
   {
-    ElementRegionBase * const elemRegion = elemManager.getRegion( er );
-    newElemPackList[er].resize( elemRegion->numSubRegions());
-    newElemData[er].resize( elemRegion->numSubRegions());
-    modElemPackList[er].resize( elemRegion->numSubRegions());
-    modElemData[er].resize( elemRegion->numSubRegions());
-    for( localIndex esr=0; esr<elemRegion->numSubRegions(); ++esr )
+    ElementRegionBase & elemRegion = elemManager.getRegion( er );
+    newElemPackList[er].resize( elemRegion.numSubRegions() );
+    newElemData[er].resize( elemRegion.numSubRegions() );
+    modElemPackList[er].resize( elemRegion.numSubRegions() );
+    modElemData[er].resize( elemRegion.numSubRegions() );
+    for( localIndex esr = 0; esr < elemRegion.numSubRegions(); ++esr )
     {
-      ElementSubRegionBase * const subRegion = elemRegion->getSubRegion( esr );
-      arrayView1d< integer > const & subRegionGhostRank = subRegion->ghostRank();
+      ElementSubRegionBase & subRegion = elemRegion.getSubRegion( esr );
+      arrayView1d< integer > const & subRegionGhostRank = subRegion.ghostRank();
       if( modifiedObjects.modifiedElements.count( {er, esr} ) > 0 )
       {
         std::set< localIndex > const & elemList = modifiedObjects.modifiedElements.at( {er, esr} );
@@ -538,12 +535,12 @@ ParallelTopologyChange::
   modifiedLocalElementsData.resize( elemManager->numRegions());
   for( localIndex er=0; er<elemManager->numRegions(); ++er )
   {
-    ElementRegionBase * const elemRegion = elemManager->getRegion( er );
-    newLocalElements[er].resize( elemRegion->numSubRegions());
-    newLocalElementsData[er].resize( elemRegion->numSubRegions());
-    modifiedLocalElements[er].resize( elemRegion->numSubRegions());
-    modifiedLocalElementsData[er].resize( elemRegion->numSubRegions());
-    for( localIndex esr=0; esr<elemRegion->numSubRegions(); ++esr )
+    ElementRegionBase & elemRegion = elemManager->getRegion( er );
+    newLocalElements[er].resize( elemRegion.numSubRegions());
+    newLocalElementsData[er].resize( elemRegion.numSubRegions());
+    modifiedLocalElements[er].resize( elemRegion.numSubRegions());
+    modifiedLocalElementsData[er].resize( elemRegion.numSubRegions());
+    for( localIndex esr=0; esr<elemRegion.numSubRegions(); ++esr )
     {
       newLocalElements[er][esr].set( newLocalElementsData[er][esr] );
       modifiedLocalElements[er][esr].set( modifiedLocalElementsData[er][esr] );
@@ -608,8 +605,8 @@ ParallelTopologyChange::
 
   for( localIndex er=0; er<elemManager->numRegions(); ++er )
   {
-    ElementRegionBase * const elemRegion = elemManager->getRegion( er );
-    for( localIndex esr=0; esr<elemRegion->numSubRegions(); ++esr )
+    ElementRegionBase & elemRegion = elemManager->getRegion( er );
+    for( localIndex esr = 0; esr < elemRegion.numSubRegions(); ++esr )
     {
       allNewElements[{er, esr}].insert( newLocalElements[er][esr].get().begin(),
                                         newLocalElements[er][esr].get().end() );
@@ -711,14 +708,14 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
   modElemsToSend.resize( elemManager->numRegions() );
   for( localIndex er=0; er<elemManager->numRegions(); ++er )
   {
-    ElementRegionBase * const elemRegion = elemManager->getRegion( er );
-    newElemsToSendData[er].resize( elemRegion->numSubRegions() );
-    newElemsToSend[er].resize( elemRegion->numSubRegions() );
-    modElemsToSendData[er].resize( elemRegion->numSubRegions() );
-    modElemsToSend[er].resize( elemRegion->numSubRegions() );
+    ElementRegionBase & elemRegion = elemManager->getRegion( er );
+    newElemsToSendData[er].resize( elemRegion.numSubRegions() );
+    newElemsToSend[er].resize( elemRegion.numSubRegions() );
+    modElemsToSendData[er].resize( elemRegion.numSubRegions() );
+    modElemsToSend[er].resize( elemRegion.numSubRegions() );
 
-    elemRegion->forElementSubRegionsIndex< FaceElementSubRegion >( [&]( localIndex const esr,
-                                                                        FaceElementSubRegion & subRegion )
+    elemRegion.forElementSubRegionsIndex< FaceElementSubRegion >( [&]( localIndex const esr,
+                                                                       FaceElementSubRegion & subRegion )
     {
       FaceElementSubRegion::FaceMapType const & faceList = subRegion.faceList();
       localIndex_array & elemGhostsToSend = subRegion.getNeighborData( neighbor->neighborRank() ).ghostsToSend();
@@ -733,8 +730,8 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
       newElemsToSend[er][esr] = newElemsToSendData[er][esr];
     } );
 
-    elemRegion->forElementSubRegionsIndex< ElementSubRegionBase >( [&]( localIndex const esr,
-                                                                        ElementSubRegionBase const & subRegion )
+    elemRegion.forElementSubRegionsIndex< ElementSubRegionBase >( [&]( localIndex const esr,
+                                                                       ElementSubRegionBase const & subRegion )
     {
       modElemsToSend[er][esr].set( modElemsToSendData[er][esr] );
       arrayView1d< localIndex const > const & elemGhostsToSend = subRegion.getNeighborData( neighbor->neighborRank() ).ghostsToSend();
@@ -860,12 +857,12 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
   modGhostElemsData.resize( elemManager->numRegions() );
   for( localIndex er=0; er<elemManager->numRegions(); ++er )
   {
-    ElementRegionBase * const elemRegion = elemManager->getRegion( er );
-    newGhostElemsData[er].resize( elemRegion->numSubRegions() );
-    newGhostElems[er].resize( elemRegion->numSubRegions() );
-    modGhostElemsData[er].resize( elemRegion->numSubRegions() );
-    modGhostElems[er].resize( elemRegion->numSubRegions() );
-    for( localIndex esr=0; esr<elemRegion->numSubRegions(); ++esr )
+    ElementRegionBase & elemRegion = elemManager->getRegion( er );
+    newGhostElemsData[er].resize( elemRegion.numSubRegions() );
+    newGhostElems[er].resize( elemRegion.numSubRegions() );
+    modGhostElemsData[er].resize( elemRegion.numSubRegions() );
+    modGhostElems[er].resize( elemRegion.numSubRegions() );
+    for( localIndex esr=0; esr<elemRegion.numSubRegions(); ++esr )
     {
       newGhostElems[er][esr].set( newGhostElemsData[er][esr] );
       modGhostElems[er][esr].set( modGhostElemsData[er][esr] );
@@ -959,14 +956,14 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
 }
 
 void ParallelTopologyChange::updateConnectorsToFaceElems( std::set< localIndex > const & newFaceElements,
-                                                          FaceElementSubRegion const * const faceElemSubRegion,
+                                                          FaceElementSubRegion const & faceElemSubRegion,
                                                           EdgeManager * const edgeManager )
 {
   ArrayOfArrays< localIndex > & connectorToElem = edgeManager->m_fractureConnectorEdgesToFaceElements;
   map< localIndex, localIndex > & edgesToConnectorEdges = edgeManager->m_edgesToFractureConnectorsEdges;
   array1d< localIndex > & connectorEdgesToEdges = edgeManager->m_fractureConnectorsEdgesToEdges;
 
-  ArrayOfArraysView< localIndex const > const facesToEdges = faceElemSubRegion->edgeList().toViewConst();
+  ArrayOfArraysView< localIndex const > const facesToEdges = faceElemSubRegion.edgeList().toViewConst();
 
   for( localIndex const & kfe : newFaceElements )
   {
