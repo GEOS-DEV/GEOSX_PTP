@@ -29,10 +29,10 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
                                                         int mpiCommOrder )
 {
 
-  NodeManager * const nodeManager = mesh->getNodeManager();
-  EdgeManager * const edgeManager = mesh->getEdgeManager();
-  FaceManager * const faceManager = mesh->getFaceManager();
-  ElementRegionManager * const elemManager = mesh->getElemManager();
+  NodeManager & nodeManager = mesh->getNodeManager();
+  EdgeManager & edgeManager = mesh->getEdgeManager();
+  FaceManager & faceManager = mesh->getFaceManager();
+  ElementRegionManager & elemManager = mesh->getElemManager();
 
   //************************************************************************************************
   // 2) first we need to send over:
@@ -103,14 +103,14 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
                                               receivedObjects );
   }
 
-  nodeManager->inheritGhostRankFromParent( receivedObjects.newNodes );
-  edgeManager->inheritGhostRankFromParent( receivedObjects.newEdges );
-  faceManager->inheritGhostRankFromParent( receivedObjects.newFaces );
+  nodeManager.inheritGhostRankFromParent( receivedObjects.newNodes );
+  edgeManager.inheritGhostRankFromParent( receivedObjects.newEdges );
+  faceManager.inheritGhostRankFromParent( receivedObjects.newFaces );
 
-  elemManager->forElementSubRegionsComplete< FaceElementSubRegion >( [&]( localIndex const er,
-                                                                          localIndex const esr,
-                                                                          ElementRegionBase &,
-                                                                          FaceElementSubRegion & subRegion )
+  elemManager.forElementSubRegionsComplete< FaceElementSubRegion >( [&]( localIndex const er,
+                                                                         localIndex const esr,
+                                                                         ElementRegionBase &,
+                                                                         FaceElementSubRegion & subRegion )
   {
     subRegion.inheritGhostRankFromParentFace( faceManager, receivedObjects.newElements[{er, esr}] );
   } );
@@ -193,24 +193,24 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
 
   modifiedObjects.insert( receivedObjects );
 
-  nodeManager->fixUpDownMaps( false );
-  edgeManager->fixUpDownMaps( false );
-  faceManager->fixUpDownMaps( false );
+  nodeManager.fixUpDownMaps( false );
+  edgeManager.fixUpDownMaps( false );
+  faceManager.fixUpDownMaps( false );
 
 
-  for( localIndex er = 0; er < elemManager->numRegions(); ++er )
+  for( localIndex er = 0; er < elemManager.numRegions(); ++er )
   {
-    ElementRegionBase & elemRegion = elemManager->getRegion( er );
+    ElementRegionBase & elemRegion = elemManager.getRegion( er );
     for( localIndex esr = 0; esr < elemRegion.numSubRegions(); ++esr )
     {
       elemRegion.getSubRegion( esr ).fixUpDownMaps( false );
     }
   }
 
-  elemManager->forElementSubRegionsComplete< FaceElementSubRegion >( [&]( localIndex const er,
-                                                                          localIndex const esr,
-                                                                          ElementRegionBase const &,
-                                                                          FaceElementSubRegion const & subRegion )
+  elemManager.forElementSubRegionsComplete< FaceElementSubRegion >( [&]( localIndex const er,
+                                                                         localIndex const esr,
+                                                                         ElementRegionBase const &,
+                                                                         FaceElementSubRegion const & subRegion )
   {
     updateConnectorsToFaceElems( receivedObjects.newElements.at( {er, esr} ), subRegion, edgeManager );
   } );
@@ -219,26 +219,25 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
   std::set< localIndex > allTouchedNodes;
   allTouchedNodes.insert( modifiedObjects.newNodes.begin(), modifiedObjects.newNodes.end() );
   allTouchedNodes.insert( modifiedObjects.modifiedNodes.begin(), modifiedObjects.modifiedNodes.end() );
-  nodeManager->depopulateUpMaps( allTouchedNodes,
-                                 edgeManager->nodeList(),
-                                 faceManager->nodeList().toViewConst(),
-                                 *elemManager );
+  nodeManager.depopulateUpMaps( allTouchedNodes,
+                                edgeManager.nodeList(),
+                                faceManager.nodeList().toViewConst(),
+                                elemManager );
 
   std::set< localIndex > allTouchedEdges;
   allTouchedEdges.insert( modifiedObjects.newEdges.begin(), modifiedObjects.newEdges.end() );
   allTouchedEdges.insert( modifiedObjects.modifiedEdges.begin(), modifiedObjects.modifiedEdges.end() );
-  edgeManager->depopulateUpMaps( allTouchedEdges,
-                                 faceManager->edgeList().toViewConst() );
+  edgeManager.depopulateUpMaps( allTouchedEdges,
+                                faceManager.edgeList().toViewConst() );
 
   std::set< localIndex > allTouchedFaces;
   allTouchedFaces.insert( modifiedObjects.newFaces.begin(), modifiedObjects.newFaces.end() );
   allTouchedFaces.insert( modifiedObjects.modifiedFaces.begin(), modifiedObjects.modifiedFaces.end() );
-  faceManager->depopulateUpMaps( allTouchedFaces,
-                                 *elemManager );
+  faceManager.depopulateUpMaps( allTouchedFaces, elemManager );
 
-  nodeManager->enforceStateFieldConsistencyPostTopologyChange( modifiedObjects.modifiedNodes );
-  edgeManager->enforceStateFieldConsistencyPostTopologyChange( modifiedObjects.modifiedEdges );
-  faceManager->enforceStateFieldConsistencyPostTopologyChange( modifiedObjects.modifiedFaces );
+  nodeManager.enforceStateFieldConsistencyPostTopologyChange( modifiedObjects.modifiedNodes );
+  edgeManager.enforceStateFieldConsistencyPostTopologyChange( modifiedObjects.modifiedEdges );
+  faceManager.enforceStateFieldConsistencyPostTopologyChange( modifiedObjects.modifiedFaces );
 
 
 }
@@ -253,10 +252,10 @@ ParallelTopologyChange::
 {
   int bufferSize = 0;
 
-  NodeManager & nodeManager = *(meshLevel->getNodeManager());
-  EdgeManager & edgeManager = *(meshLevel->getEdgeManager());
-  FaceManager & faceManager = *(meshLevel->getFaceManager());
-  ElementRegionManager & elemManager = *(meshLevel->getElemManager() );
+  NodeManager & nodeManager = meshLevel->getNodeManager();
+  EdgeManager & edgeManager = meshLevel->getEdgeManager();
+  FaceManager & faceManager = meshLevel->getFaceManager();
+  ElementRegionManager & elemManager = meshLevel->getElemManager();
 
   arrayView1d< integer > const & nodeGhostRank = nodeManager.ghostRank();
   arrayView1d< integer > const & edgeGhostRank = edgeManager.ghostRank();
@@ -510,10 +509,10 @@ ParallelTopologyChange::
 {
   GEOSX_MARK_FUNCTION;
 
-  NodeManager * const nodeManager = mesh->getNodeManager();
-  EdgeManager * const edgeManager = mesh->getEdgeManager();
-  FaceManager * const faceManager = mesh->getFaceManager();
-  ElementRegionManager * const elemManager = mesh->getElemManager();
+  NodeManager & nodeManager = mesh->getNodeManager();
+  EdgeManager & edgeManager = mesh->getEdgeManager();
+  FaceManager & faceManager = mesh->getFaceManager();
+  ElementRegionManager & elemManager = mesh->getElemManager();
 
 
 
@@ -529,13 +528,13 @@ ParallelTopologyChange::
   ElementRegionManager::ElementReferenceAccessor< localIndex_array > modifiedLocalElements;
   array1d< array1d< localIndex_array > > modifiedLocalElementsData;
 
-  newLocalElements.resize( elemManager->numRegions());
-  newLocalElementsData.resize( elemManager->numRegions());
-  modifiedLocalElements.resize( elemManager->numRegions());
-  modifiedLocalElementsData.resize( elemManager->numRegions());
-  for( localIndex er=0; er<elemManager->numRegions(); ++er )
+  newLocalElements.resize( elemManager.numRegions());
+  newLocalElementsData.resize( elemManager.numRegions());
+  modifiedLocalElements.resize( elemManager.numRegions());
+  modifiedLocalElementsData.resize( elemManager.numRegions());
+  for( localIndex er=0; er<elemManager.numRegions(); ++er )
   {
-    ElementRegionBase & elemRegion = elemManager->getRegion( er );
+    ElementRegionBase & elemRegion = elemManager.getRegion( er );
     newLocalElements[er].resize( elemRegion.numSubRegions());
     newLocalElementsData[er].resize( elemRegion.numSubRegions());
     modifiedLocalElements[er].resize( elemRegion.numSubRegions());
@@ -550,38 +549,38 @@ ParallelTopologyChange::
 
 
   int unpackedSize = 0;
-  unpackedSize += nodeManager->unpackGlobalMaps( receiveBufferPtr, newLocalNodes, 0 );
-  unpackedSize += edgeManager->unpackGlobalMaps( receiveBufferPtr, newLocalEdges, 0 );
-  unpackedSize += faceManager->unpackGlobalMaps( receiveBufferPtr, newLocalFaces, 0 );
-  unpackedSize += elemManager->UnpackGlobalMaps( receiveBufferPtr, newLocalElements );
+  unpackedSize += nodeManager.unpackGlobalMaps( receiveBufferPtr, newLocalNodes, 0 );
+  unpackedSize += edgeManager.unpackGlobalMaps( receiveBufferPtr, newLocalEdges, 0 );
+  unpackedSize += faceManager.unpackGlobalMaps( receiveBufferPtr, newLocalFaces, 0 );
+  unpackedSize += elemManager.UnpackGlobalMaps( receiveBufferPtr, newLocalElements );
 
-  unpackedSize += nodeManager->unpackUpDownMaps( receiveBufferPtr, newLocalNodes, true, true );
-  unpackedSize += edgeManager->unpackUpDownMaps( receiveBufferPtr, newLocalEdges, true, true );
-  unpackedSize += faceManager->unpackUpDownMaps( receiveBufferPtr, newLocalFaces, true, true );
-  unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, newLocalElements, true );
+  unpackedSize += nodeManager.unpackUpDownMaps( receiveBufferPtr, newLocalNodes, true, true );
+  unpackedSize += edgeManager.unpackUpDownMaps( receiveBufferPtr, newLocalEdges, true, true );
+  unpackedSize += faceManager.unpackUpDownMaps( receiveBufferPtr, newLocalFaces, true, true );
+  unpackedSize += elemManager.UnpackUpDownMaps( receiveBufferPtr, newLocalElements, true );
 
-  unpackedSize += nodeManager->unpackParentChildMaps( receiveBufferPtr, newLocalNodes );
-  unpackedSize += edgeManager->unpackParentChildMaps( receiveBufferPtr, newLocalEdges );
-  unpackedSize += faceManager->unpackParentChildMaps( receiveBufferPtr, newLocalFaces );
+  unpackedSize += nodeManager.unpackParentChildMaps( receiveBufferPtr, newLocalNodes );
+  unpackedSize += edgeManager.unpackParentChildMaps( receiveBufferPtr, newLocalEdges );
+  unpackedSize += faceManager.unpackParentChildMaps( receiveBufferPtr, newLocalFaces );
 
-  unpackedSize += nodeManager->unpack( receiveBufferPtr, newLocalNodes, 0 );
-  unpackedSize += edgeManager->unpack( receiveBufferPtr, newLocalEdges, 0 );
-  unpackedSize += faceManager->unpack( receiveBufferPtr, newLocalFaces, 0 );
-  unpackedSize += elemManager->Unpack( receiveBufferPtr, newLocalElements );
+  unpackedSize += nodeManager.unpack( receiveBufferPtr, newLocalNodes, 0 );
+  unpackedSize += edgeManager.unpack( receiveBufferPtr, newLocalEdges, 0 );
+  unpackedSize += faceManager.unpack( receiveBufferPtr, newLocalFaces, 0 );
+  unpackedSize += elemManager.Unpack( receiveBufferPtr, newLocalElements );
 
-  unpackedSize += nodeManager->unpackUpDownMaps( receiveBufferPtr, modifiedLocalNodes, false, true );
-  unpackedSize += edgeManager->unpackUpDownMaps( receiveBufferPtr, modifiedLocalEdges, false, true );
-  unpackedSize += faceManager->unpackUpDownMaps( receiveBufferPtr, modifiedLocalFaces, false, true );
-  unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, modifiedLocalElements, true );
+  unpackedSize += nodeManager.unpackUpDownMaps( receiveBufferPtr, modifiedLocalNodes, false, true );
+  unpackedSize += edgeManager.unpackUpDownMaps( receiveBufferPtr, modifiedLocalEdges, false, true );
+  unpackedSize += faceManager.unpackUpDownMaps( receiveBufferPtr, modifiedLocalFaces, false, true );
+  unpackedSize += elemManager.UnpackUpDownMaps( receiveBufferPtr, modifiedLocalElements, true );
 
-  unpackedSize += nodeManager->unpackParentChildMaps( receiveBufferPtr, modifiedLocalNodes );
-  unpackedSize += edgeManager->unpackParentChildMaps( receiveBufferPtr, modifiedLocalEdges );
-  unpackedSize += faceManager->unpackParentChildMaps( receiveBufferPtr, modifiedLocalFaces );
+  unpackedSize += nodeManager.unpackParentChildMaps( receiveBufferPtr, modifiedLocalNodes );
+  unpackedSize += edgeManager.unpackParentChildMaps( receiveBufferPtr, modifiedLocalEdges );
+  unpackedSize += faceManager.unpackParentChildMaps( receiveBufferPtr, modifiedLocalFaces );
 
-  unpackedSize += nodeManager->unpack( receiveBufferPtr, modifiedLocalNodes, 0 );
-  unpackedSize += edgeManager->unpack( receiveBufferPtr, modifiedLocalEdges, 0 );
-  unpackedSize += faceManager->unpack( receiveBufferPtr, modifiedLocalFaces, 0 );
-//    unpackedSize += elemManager->Unpack( receiveBufferPtr, modifiedElements );
+  unpackedSize += nodeManager.unpack( receiveBufferPtr, modifiedLocalNodes, 0 );
+  unpackedSize += edgeManager.unpack( receiveBufferPtr, modifiedLocalEdges, 0 );
+  unpackedSize += faceManager.unpack( receiveBufferPtr, modifiedLocalFaces, 0 );
+//    unpackedSize += elemManager.Unpack( receiveBufferPtr, modifiedElements );
 
 
 
@@ -603,9 +602,9 @@ ParallelTopologyChange::
   allNewFaces.insert( newLocalFaces.begin(), newLocalFaces.end() );
   allModifiedFaces.insert( modifiedLocalFaces.begin(), modifiedLocalFaces.end() );
 
-  for( localIndex er=0; er<elemManager->numRegions(); ++er )
+  for( localIndex er=0; er<elemManager.numRegions(); ++er )
   {
-    ElementRegionBase & elemRegion = elemManager->getRegion( er );
+    ElementRegionBase & elemRegion = elemManager.getRegion( er );
     for( localIndex esr = 0; esr < elemRegion.numSubRegions(); ++esr )
     {
       allNewElements[{er, esr}].insert( newLocalElements[er][esr].get().begin(),
@@ -662,10 +661,10 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
                                                              MeshLevel * const mesh,
                                                              ModifiedObjectLists & receivedObjects )
 {
-  NodeManager * const nodeManager = mesh->getNodeManager();
-  EdgeManager * const edgeManager = mesh->getEdgeManager();
-  FaceManager * const faceManager = mesh->getFaceManager();
-  ElementRegionManager * const elemManager = mesh->getElemManager();
+  NodeManager & nodeManager = mesh->getNodeManager();
+  EdgeManager & edgeManager = mesh->getEdgeManager();
+  FaceManager & faceManager = mesh->getFaceManager();
+  ElementRegionManager & elemManager = mesh->getElemManager();
 
   localIndex_array newNodesToSend;
   localIndex_array newEdgesToSend;
@@ -679,13 +678,13 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
   ElementRegionManager::ElementReferenceAccessor< localIndex_array > modElemsToSend;
   array1d< array1d< localIndex_array > > modElemsToSendData;
 
-  localIndex_array & nodeGhostsToSend = nodeManager->getNeighborData( neighbor->neighborRank() ).ghostsToSend();
-  localIndex_array & edgeGhostsToSend = edgeManager->getNeighborData( neighbor->neighborRank() ).ghostsToSend();
-  localIndex_array & faceGhostsToSend = faceManager->getNeighborData( neighbor->neighborRank() ).ghostsToSend();
+  localIndex_array & nodeGhostsToSend = nodeManager.getNeighborData( neighbor->neighborRank() ).ghostsToSend();
+  localIndex_array & edgeGhostsToSend = edgeManager.getNeighborData( neighbor->neighborRank() ).ghostsToSend();
+  localIndex_array & faceGhostsToSend = faceManager.getNeighborData( neighbor->neighborRank() ).ghostsToSend();
 
-  arrayView1d< localIndex > const & nodalParentIndices = nodeManager->getExtrinsicData< extrinsicMeshData::ParentIndex >();
-  arrayView1d< localIndex > const & edgeParentIndices = edgeManager->getExtrinsicData< extrinsicMeshData::ParentIndex >();
-  arrayView1d< localIndex > const & faceParentIndices = faceManager->getExtrinsicData< extrinsicMeshData::ParentIndex >();
+  arrayView1d< localIndex > const & nodalParentIndices = nodeManager.getExtrinsicData< extrinsicMeshData::ParentIndex >();
+  arrayView1d< localIndex > const & edgeParentIndices = edgeManager.getExtrinsicData< extrinsicMeshData::ParentIndex >();
+  arrayView1d< localIndex > const & faceParentIndices = faceManager.getExtrinsicData< extrinsicMeshData::ParentIndex >();
 
   FilterNewObjectsForPackToGhosts( receivedObjects.newNodes, nodalParentIndices, nodeGhostsToSend, newNodesToSend );
   FilterModObjectsForPackToGhosts( receivedObjects.modifiedNodes, nodeGhostsToSend, modNodesToSend );
@@ -702,13 +701,13 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
     faceGhostsToSendSet.insert( kf );
   }
 
-  newElemsToSendData.resize( elemManager->numRegions() );
-  newElemsToSend.resize( elemManager->numRegions() );
-  modElemsToSendData.resize( elemManager->numRegions() );
-  modElemsToSend.resize( elemManager->numRegions() );
-  for( localIndex er=0; er<elemManager->numRegions(); ++er )
+  newElemsToSendData.resize( elemManager.numRegions() );
+  newElemsToSend.resize( elemManager.numRegions() );
+  modElemsToSendData.resize( elemManager.numRegions() );
+  modElemsToSend.resize( elemManager.numRegions() );
+  for( localIndex er=0; er<elemManager.numRegions(); ++er )
   {
-    ElementRegionBase & elemRegion = elemManager->getRegion( er );
+    ElementRegionBase & elemRegion = elemManager.getRegion( er );
     newElemsToSendData[er].resize( elemRegion.numSubRegions() );
     newElemsToSend[er].resize( elemRegion.numSubRegions() );
     modElemsToSendData[er].resize( elemRegion.numSubRegions() );
@@ -748,33 +747,33 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
 
   int bufferSize = 0;
 
-  bufferSize += nodeManager->packGlobalMapsSize( newNodesToSend, 0 );
-  bufferSize += edgeManager->packGlobalMapsSize( newEdgesToSend, 0 );
-  bufferSize += faceManager->packGlobalMapsSize( newFacesToSend, 0 );
-  bufferSize += elemManager->PackGlobalMapsSize( newElemsToSend );
+  bufferSize += nodeManager.packGlobalMapsSize( newNodesToSend, 0 );
+  bufferSize += edgeManager.packGlobalMapsSize( newEdgesToSend, 0 );
+  bufferSize += faceManager.packGlobalMapsSize( newFacesToSend, 0 );
+  bufferSize += elemManager.PackGlobalMapsSize( newElemsToSend );
 
-  bufferSize += nodeManager->packUpDownMapsSize( newNodesToSend );
-  bufferSize += edgeManager->packUpDownMapsSize( newEdgesToSend );
-  bufferSize += faceManager->packUpDownMapsSize( newFacesToSend );
-  bufferSize += elemManager->PackUpDownMapsSize( newElemsToSend );
+  bufferSize += nodeManager.packUpDownMapsSize( newNodesToSend );
+  bufferSize += edgeManager.packUpDownMapsSize( newEdgesToSend );
+  bufferSize += faceManager.packUpDownMapsSize( newFacesToSend );
+  bufferSize += elemManager.PackUpDownMapsSize( newElemsToSend );
 
-  bufferSize += nodeManager->packParentChildMapsSize( newNodesToSend );
-  bufferSize += edgeManager->packParentChildMapsSize( newEdgesToSend );
-  bufferSize += faceManager->packParentChildMapsSize( newFacesToSend );
+  bufferSize += nodeManager.packParentChildMapsSize( newNodesToSend );
+  bufferSize += edgeManager.packParentChildMapsSize( newEdgesToSend );
+  bufferSize += faceManager.packParentChildMapsSize( newFacesToSend );
 
-  bufferSize += nodeManager->packSize( {}, newNodesToSend, 0 );
-  bufferSize += edgeManager->packSize( {}, newEdgesToSend, 0 );
-  bufferSize += faceManager->packSize( {}, newFacesToSend, 0 );
-  bufferSize += elemManager->PackSize( {}, newElemsToSend );
+  bufferSize += nodeManager.packSize( {}, newNodesToSend, 0 );
+  bufferSize += edgeManager.packSize( {}, newEdgesToSend, 0 );
+  bufferSize += faceManager.packSize( {}, newFacesToSend, 0 );
+  bufferSize += elemManager.PackSize( {}, newElemsToSend );
 
-  bufferSize += nodeManager->packUpDownMapsSize( modNodesToSend );
-  bufferSize += edgeManager->packUpDownMapsSize( modEdgesToSend );
-  bufferSize += faceManager->packUpDownMapsSize( modFacesToSend );
-  bufferSize += elemManager->PackUpDownMapsSize( modElemsToSend );
+  bufferSize += nodeManager.packUpDownMapsSize( modNodesToSend );
+  bufferSize += edgeManager.packUpDownMapsSize( modEdgesToSend );
+  bufferSize += faceManager.packUpDownMapsSize( modFacesToSend );
+  bufferSize += elemManager.PackUpDownMapsSize( modElemsToSend );
 
-  bufferSize += nodeManager->packParentChildMapsSize( modNodesToSend );
-  bufferSize += edgeManager->packParentChildMapsSize( modEdgesToSend );
-  bufferSize += faceManager->packParentChildMapsSize( modFacesToSend );
+  bufferSize += nodeManager.packParentChildMapsSize( modNodesToSend );
+  bufferSize += edgeManager.packParentChildMapsSize( modEdgesToSend );
+  bufferSize += faceManager.packParentChildMapsSize( modFacesToSend );
 
 
   neighbor->resizeSendBuffer( commID, bufferSize );
@@ -784,33 +783,33 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
 
   int packedSize = 0;
 
-  packedSize += nodeManager->packGlobalMaps( sendBufferPtr, newNodesToSend, 0 );
-  packedSize += edgeManager->packGlobalMaps( sendBufferPtr, newEdgesToSend, 0 );
-  packedSize += faceManager->packGlobalMaps( sendBufferPtr, newFacesToSend, 0 );
-  packedSize += elemManager->PackGlobalMaps( sendBufferPtr, newElemsToSend );
+  packedSize += nodeManager.packGlobalMaps( sendBufferPtr, newNodesToSend, 0 );
+  packedSize += edgeManager.packGlobalMaps( sendBufferPtr, newEdgesToSend, 0 );
+  packedSize += faceManager.packGlobalMaps( sendBufferPtr, newFacesToSend, 0 );
+  packedSize += elemManager.PackGlobalMaps( sendBufferPtr, newElemsToSend );
 
-  packedSize += nodeManager->packUpDownMaps( sendBufferPtr, newNodesToSend );
-  packedSize += edgeManager->packUpDownMaps( sendBufferPtr, newEdgesToSend );
-  packedSize += faceManager->packUpDownMaps( sendBufferPtr, newFacesToSend );
-  packedSize += elemManager->PackUpDownMaps( sendBufferPtr, newElemsToSend );
+  packedSize += nodeManager.packUpDownMaps( sendBufferPtr, newNodesToSend );
+  packedSize += edgeManager.packUpDownMaps( sendBufferPtr, newEdgesToSend );
+  packedSize += faceManager.packUpDownMaps( sendBufferPtr, newFacesToSend );
+  packedSize += elemManager.PackUpDownMaps( sendBufferPtr, newElemsToSend );
 
-  packedSize += nodeManager->packParentChildMaps( sendBufferPtr, newNodesToSend );
-  packedSize += edgeManager->packParentChildMaps( sendBufferPtr, newEdgesToSend );
-  packedSize += faceManager->packParentChildMaps( sendBufferPtr, newFacesToSend );
+  packedSize += nodeManager.packParentChildMaps( sendBufferPtr, newNodesToSend );
+  packedSize += edgeManager.packParentChildMaps( sendBufferPtr, newEdgesToSend );
+  packedSize += faceManager.packParentChildMaps( sendBufferPtr, newFacesToSend );
 
-  packedSize += nodeManager->pack( sendBufferPtr, {}, newNodesToSend, 0 );
-  packedSize += edgeManager->pack( sendBufferPtr, {}, newEdgesToSend, 0 );
-  packedSize += faceManager->pack( sendBufferPtr, {}, newFacesToSend, 0 );
-  packedSize += elemManager->Pack( sendBufferPtr, {}, newElemsToSend );
+  packedSize += nodeManager.pack( sendBufferPtr, {}, newNodesToSend, 0 );
+  packedSize += edgeManager.pack( sendBufferPtr, {}, newEdgesToSend, 0 );
+  packedSize += faceManager.pack( sendBufferPtr, {}, newFacesToSend, 0 );
+  packedSize += elemManager.Pack( sendBufferPtr, {}, newElemsToSend );
 
-  packedSize += nodeManager->packUpDownMaps( sendBufferPtr, modNodesToSend );
-  packedSize += edgeManager->packUpDownMaps( sendBufferPtr, modEdgesToSend );
-  packedSize += faceManager->packUpDownMaps( sendBufferPtr, modFacesToSend );
-  packedSize += elemManager->PackUpDownMaps( sendBufferPtr, modElemsToSend );
+  packedSize += nodeManager.packUpDownMaps( sendBufferPtr, modNodesToSend );
+  packedSize += edgeManager.packUpDownMaps( sendBufferPtr, modEdgesToSend );
+  packedSize += faceManager.packUpDownMaps( sendBufferPtr, modFacesToSend );
+  packedSize += elemManager.PackUpDownMaps( sendBufferPtr, modElemsToSend );
 
-  packedSize += nodeManager->packParentChildMaps( sendBufferPtr, modNodesToSend );
-  packedSize += edgeManager->packParentChildMaps( sendBufferPtr, modEdgesToSend );
-  packedSize += faceManager->packParentChildMaps( sendBufferPtr, modFacesToSend );
+  packedSize += nodeManager.packParentChildMaps( sendBufferPtr, modNodesToSend );
+  packedSize += edgeManager.packParentChildMaps( sendBufferPtr, modEdgesToSend );
+  packedSize += faceManager.packParentChildMaps( sendBufferPtr, modFacesToSend );
 
 
   GEOSX_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
@@ -825,16 +824,16 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
 {
   int unpackedSize = 0;
 
-  NodeManager * const nodeManager = mesh->getNodeManager();
-  EdgeManager * const edgeManager = mesh->getEdgeManager();
-  FaceManager * const faceManager = mesh->getFaceManager();
-  ElementRegionManager * const elemManager = mesh->getElemManager();
+  NodeManager & nodeManager = mesh->getNodeManager();
+  EdgeManager & edgeManager = mesh->getEdgeManager();
+  FaceManager & faceManager = mesh->getFaceManager();
+  ElementRegionManager & elemManager = mesh->getElemManager();
 
-  localIndex_array & nodeGhostsToRecv = nodeManager->getNeighborData( neighbor->neighborRank() ).ghostsToReceive();
+  localIndex_array & nodeGhostsToRecv = nodeManager.getNeighborData( neighbor->neighborRank() ).ghostsToReceive();
 
-  localIndex_array & edgeGhostsToRecv = edgeManager->getNeighborData( neighbor->neighborRank() ).ghostsToReceive();
+  localIndex_array & edgeGhostsToRecv = edgeManager.getNeighborData( neighbor->neighborRank() ).ghostsToReceive();
 
-  localIndex_array & faceGhostsToRecv = faceManager->getNeighborData( neighbor->neighborRank() ).ghostsToReceive();
+  localIndex_array & faceGhostsToRecv = faceManager.getNeighborData( neighbor->neighborRank() ).ghostsToReceive();
 
   buffer_type const & receiveBuffer = neighbor->receiveBuffer( commID );
   buffer_unit_type const * receiveBufferPtr = receiveBuffer.data();
@@ -851,13 +850,13 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
   array1d< array1d< localIndex_array > > newGhostElemsData;
   ElementRegionManager::ElementReferenceAccessor< localIndex_array > modGhostElems;
   array1d< array1d< localIndex_array > > modGhostElemsData;
-  newGhostElems.resize( elemManager->numRegions() );
-  newGhostElemsData.resize( elemManager->numRegions() );
-  modGhostElems.resize( elemManager->numRegions() );
-  modGhostElemsData.resize( elemManager->numRegions() );
-  for( localIndex er=0; er<elemManager->numRegions(); ++er )
+  newGhostElems.resize( elemManager.numRegions() );
+  newGhostElemsData.resize( elemManager.numRegions() );
+  modGhostElems.resize( elemManager.numRegions() );
+  modGhostElemsData.resize( elemManager.numRegions() );
+  for( localIndex er=0; er<elemManager.numRegions(); ++er )
   {
-    ElementRegionBase & elemRegion = elemManager->getRegion( er );
+    ElementRegionBase & elemRegion = elemManager.getRegion( er );
     newGhostElemsData[er].resize( elemRegion.numSubRegions() );
     newGhostElems[er].resize( elemRegion.numSubRegions() );
     modGhostElemsData[er].resize( elemRegion.numSubRegions() );
@@ -870,33 +869,33 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
   }
 
 
-  unpackedSize += nodeManager->unpackGlobalMaps( receiveBufferPtr, newGhostNodes, 0 );
-  unpackedSize += edgeManager->unpackGlobalMaps( receiveBufferPtr, newGhostEdges, 0 );
-  unpackedSize += faceManager->unpackGlobalMaps( receiveBufferPtr, newGhostFaces, 0 );
-  unpackedSize += elemManager->UnpackGlobalMaps( receiveBufferPtr, newGhostElems );
+  unpackedSize += nodeManager.unpackGlobalMaps( receiveBufferPtr, newGhostNodes, 0 );
+  unpackedSize += edgeManager.unpackGlobalMaps( receiveBufferPtr, newGhostEdges, 0 );
+  unpackedSize += faceManager.unpackGlobalMaps( receiveBufferPtr, newGhostFaces, 0 );
+  unpackedSize += elemManager.UnpackGlobalMaps( receiveBufferPtr, newGhostElems );
 
-  unpackedSize += nodeManager->unpackUpDownMaps( receiveBufferPtr, newGhostNodes, true, true );
-  unpackedSize += edgeManager->unpackUpDownMaps( receiveBufferPtr, newGhostEdges, true, true );
-  unpackedSize += faceManager->unpackUpDownMaps( receiveBufferPtr, newGhostFaces, true, true );
-  unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, newGhostElems, true );
+  unpackedSize += nodeManager.unpackUpDownMaps( receiveBufferPtr, newGhostNodes, true, true );
+  unpackedSize += edgeManager.unpackUpDownMaps( receiveBufferPtr, newGhostEdges, true, true );
+  unpackedSize += faceManager.unpackUpDownMaps( receiveBufferPtr, newGhostFaces, true, true );
+  unpackedSize += elemManager.UnpackUpDownMaps( receiveBufferPtr, newGhostElems, true );
 
-  unpackedSize += nodeManager->unpackParentChildMaps( receiveBufferPtr, newGhostNodes );
-  unpackedSize += edgeManager->unpackParentChildMaps( receiveBufferPtr, newGhostEdges );
-  unpackedSize += faceManager->unpackParentChildMaps( receiveBufferPtr, newGhostFaces );
+  unpackedSize += nodeManager.unpackParentChildMaps( receiveBufferPtr, newGhostNodes );
+  unpackedSize += edgeManager.unpackParentChildMaps( receiveBufferPtr, newGhostEdges );
+  unpackedSize += faceManager.unpackParentChildMaps( receiveBufferPtr, newGhostFaces );
 
-  unpackedSize += nodeManager->unpack( receiveBufferPtr, newGhostNodes, 0 );
-  unpackedSize += edgeManager->unpack( receiveBufferPtr, newGhostEdges, 0 );
-  unpackedSize += faceManager->unpack( receiveBufferPtr, newGhostFaces, 0 );
-  unpackedSize += elemManager->Unpack( receiveBufferPtr, newGhostElems );
+  unpackedSize += nodeManager.unpack( receiveBufferPtr, newGhostNodes, 0 );
+  unpackedSize += edgeManager.unpack( receiveBufferPtr, newGhostEdges, 0 );
+  unpackedSize += faceManager.unpack( receiveBufferPtr, newGhostFaces, 0 );
+  unpackedSize += elemManager.Unpack( receiveBufferPtr, newGhostElems );
 
-  unpackedSize += nodeManager->unpackUpDownMaps( receiveBufferPtr, modGhostNodes, false, true );
-  unpackedSize += edgeManager->unpackUpDownMaps( receiveBufferPtr, modGhostEdges, false, true );
-  unpackedSize += faceManager->unpackUpDownMaps( receiveBufferPtr, modGhostFaces, false, true );
-  unpackedSize += elemManager->UnpackUpDownMaps( receiveBufferPtr, modGhostElems, true );
+  unpackedSize += nodeManager.unpackUpDownMaps( receiveBufferPtr, modGhostNodes, false, true );
+  unpackedSize += edgeManager.unpackUpDownMaps( receiveBufferPtr, modGhostEdges, false, true );
+  unpackedSize += faceManager.unpackUpDownMaps( receiveBufferPtr, modGhostFaces, false, true );
+  unpackedSize += elemManager.UnpackUpDownMaps( receiveBufferPtr, modGhostElems, true );
 
-  unpackedSize += nodeManager->unpackParentChildMaps( receiveBufferPtr, modGhostNodes );
-  unpackedSize += edgeManager->unpackParentChildMaps( receiveBufferPtr, modGhostEdges );
-  unpackedSize += faceManager->unpackParentChildMaps( receiveBufferPtr, modGhostFaces );
+  unpackedSize += nodeManager.unpackParentChildMaps( receiveBufferPtr, modGhostNodes );
+  unpackedSize += edgeManager.unpackParentChildMaps( receiveBufferPtr, modGhostEdges );
+  unpackedSize += faceManager.unpackParentChildMaps( receiveBufferPtr, modGhostFaces );
 
   if( newGhostNodes.size() > 0 )
   {
@@ -925,7 +924,7 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
     }
   }
 
-  elemManager->forElementSubRegionsComplete< ElementSubRegionBase >(
+  elemManager.forElementSubRegionsComplete< ElementSubRegionBase >(
     [&]( localIndex const er, localIndex const esr, ElementRegionBase &, ElementSubRegionBase & subRegion )
   {
     localIndex_array & elemGhostsToReceive = subRegion.getNeighborData( neighbor->neighborRank() ).ghostsToReceive();
@@ -957,11 +956,11 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
 
 void ParallelTopologyChange::updateConnectorsToFaceElems( std::set< localIndex > const & newFaceElements,
                                                           FaceElementSubRegion const & faceElemSubRegion,
-                                                          EdgeManager * const edgeManager )
+                                                          EdgeManager & edgeManager )
 {
-  ArrayOfArrays< localIndex > & connectorToElem = edgeManager->m_fractureConnectorEdgesToFaceElements;
-  map< localIndex, localIndex > & edgesToConnectorEdges = edgeManager->m_edgesToFractureConnectorsEdges;
-  array1d< localIndex > & connectorEdgesToEdges = edgeManager->m_fractureConnectorsEdgesToEdges;
+  ArrayOfArrays< localIndex > & connectorToElem = edgeManager.m_fractureConnectorEdgesToFaceElements;
+  map< localIndex, localIndex > & edgesToConnectorEdges = edgeManager.m_edgesToFractureConnectorsEdges;
+  array1d< localIndex > & connectorEdgesToEdges = edgeManager.m_fractureConnectorsEdgesToEdges;
 
   ArrayOfArraysView< localIndex const > const facesToEdges = faceElemSubRegion.edgeList().toViewConst();
 
@@ -994,7 +993,7 @@ void ParallelTopologyChange::updateConnectorsToFaceElems( std::set< localIndex >
       {
         connectorToElem.resizeArray( connectorIndex, numExistingCells+1 );
         connectorToElem[connectorIndex][ numExistingCells ] = kfe;
-        edgeManager->m_recalculateFractureConnectorEdges.insert( connectorIndex );
+        edgeManager.m_recalculateFractureConnectorEdges.insert( connectorIndex );
       }
     }
   }

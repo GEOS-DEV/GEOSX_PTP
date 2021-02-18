@@ -49,7 +49,7 @@ public:
 
   static void updateConnectorsToFaceElems( std::set< localIndex > const & newFaceElements,
                                            FaceElementSubRegion const & faceElemSubRegion,
-                                           EdgeManager * const edgeManager );
+                                           EdgeManager & edgeManager );
 
 };
 
