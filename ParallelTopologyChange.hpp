@@ -48,8 +48,8 @@ public:
 
 
   static void updateConnectorsToFaceElems( std::set< localIndex > const & newFaceElements,
-                                           FaceElementSubRegion const * const faceElemSubRegion,
-                                           EdgeManager * const edgeManager );
+                                           FaceElementSubRegion const & faceElemSubRegion,
+                                           EdgeManager & edgeManager );
 
 };
 
