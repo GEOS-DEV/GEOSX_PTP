@@ -38,13 +38,9 @@ EmebeddedSurfacesParallelSynchronization::~EmebeddedSurfacesParallelSynchronizat
 
 void EmebeddedSurfacesParallelSynchronization::synchronizeNewSurfaces( MeshLevel & mesh,
                                                                        std::vector< NeighborCommunicator > & neighbors,
-                                                                       NewObjectLists & newObjects,
-                                                                       NewObjectLists & receivedObjects )
+                                                                       NewObjectLists & newObjects )
 {
-
-  NodeManager & nodeManager = mesh.getNodeManager();
-  EdgeManager & edgeManager = mesh.getEdgeManager();
-  ElementRegionManager & elemManager = mesh.getElemManager();
+  int mpiCommOrder = 0; // TODO need to think if this is necessary.
 
   //************************************************************************************************
   // We need to send over the new embedded surfaces and related objects for those whose parents are ghosts on neighbors.
@@ -103,7 +99,7 @@ void EmebeddedSurfacesParallelSynchronization::synchronizeNewSurfaces( MeshLevel
 
     NeighborCommunicator & neighbor = neighbors[neighborIndex];
 
-    unpackNewToGhosts( &neighbor, commData.commID, mesh, receivedObjects );
+    unpackNewToGhosts( &neighbor, commData.commID, mesh );
   }
 }
 
@@ -114,13 +110,14 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
 {
   ElementRegionManager & elemManager = mesh.getElemManager();
 
+  int neighborRank = neighbor->neighborRank();
+
   ElementRegionManager::ElementViewAccessor< arrayView1d< localIndex > > newElemsToSend;
   array1d< array1d< localIndex_array > > newElemsToSendData;
 
   newElemsToSendData.resize( elemManager.numRegions() );
   newElemsToSend.resize( elemManager.numRegions() );
-  modElemsToSendData.resize( elemManager.numRegions() );
-  modElemsToSend.resize( elemManager.numRegions() );
+
   for( localIndex er=0; er<elemManager.numRegions(); ++er )
   {
     ElementRegionBase & elemRegion = elemManager.getRegion( er );
@@ -130,11 +127,11 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
     elemRegion.forElementSubRegionsIndex< EmbeddedSurfaceSubRegion >( [&]( localIndex const esr,
                                                                        EmbeddedSurfaceSubRegion & subRegion )
     {
-      localIndex_array & elemGhostsToSend = subRegion.getNeighborData( neighbor->neighborRank() ).ghostsToSend();
+      localIndex_array & elemGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
       arrayView1d< integer > const & subRegionGhostRank = subRegion.ghostRank();
       for( localIndex const & k : newObjects.newElements.at( {er, esr} ) )
       {
-        if( subRegionGhosRank[k] == neighbor->neighborRank() )
+        if( subRegionGhostRank[k] == neighborRank )
         {
           newElemsToSendData[er][esr].emplace_back( k );
           elemGhostsToSend.emplace_back( k );
@@ -177,8 +174,7 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
 
 void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommunicator * const neighbor,
                                                                   int commID,
-                                                                  MeshLevel & mesh,
-                                                                  NewObjectLists & receivedObjects )
+                                                                  MeshLevel & mesh )
 {
   int unpackedSize = 0;
 
@@ -202,13 +198,7 @@ void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommun
     }
   }
 
-  // unpackedSize += elemManager.UnpackGlobalMaps( receiveBufferPtr, newGhostElems );
-
-  // unpackedSize += elemManager.UnpackUpDownMaps( receiveBufferPtr, newGhostElems, true );
-
   unpackedSize += elemManager.Unpack( receiveBufferPtr, newGhostElems );
-
-  // unpackedSize += elemManager.UnpackUpDownMaps( receiveBufferPtr, modGhostElems, true );
 
   elemManager.forElementSubRegionsComplete< ElementSubRegionBase >(
     [&]( localIndex const er, localIndex const esr, ElementRegionBase &, ElementSubRegionBase & subRegion )
@@ -222,7 +212,6 @@ void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommun
       for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
       {
         elemGhostsToReceive.emplace_back( newElemIndex );
-        receivedObjects.newElements[ { er, esr } ].insert( newElemIndex );
       }
     }
   } );

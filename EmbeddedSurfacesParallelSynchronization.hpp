@@ -35,17 +35,18 @@ public:
   ~EmebeddedSurfacesParallelSynchronization();
 
   static void synchronizeNewSurfaces( MeshLevel & mesh,
-                                      std::vector< NeighborCommunicator > & neighbors );
+                                      std::vector< NeighborCommunicator > & neighbors,
+                                      NewObjectLists & newObjects );
+
 
   static void packNewObjectsToGhosts( NeighborCommunicator * const neighbor,
                                       int commID,
                                       MeshLevel & mesh,
-                                      ModifiedObjectLists & receivedObjects );
+                                      NewObjectLists & newObjects );
 
   static void unpackNewToGhosts( NeighborCommunicator * const neighbor,
                                  int commID,
-                                 MeshLevel & mesh,
-                                 ModifiedObjectLists & receivedObjects );
+                                 MeshLevel & mesh );
 
 };
 
