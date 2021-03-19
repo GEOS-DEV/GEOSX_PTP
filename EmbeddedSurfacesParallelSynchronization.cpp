@@ -66,7 +66,7 @@ void EmebeddedSurfacesParallelSynchronization::synchronizeNewSurfaces( MeshLevel
   for( unsigned int count=0; count<neighbors.size(); ++count )
   {
     int neighborIndex;
-    MpiWrapper::waitany( commData.size,
+    MpiWrapper::waitAny( commData.size,
                          commData.mpiSizeRecvBufferRequest.data(),
                          &neighborIndex,
                          commData.mpiSizeRecvBufferStatus.data() );
@@ -86,7 +86,7 @@ void EmebeddedSurfacesParallelSynchronization::synchronizeNewSurfaces( MeshLevel
     int neighborIndex = count;
     if( mpiCommOrder == 0 )
     {
-      MpiWrapper::waitany( commData.size,
+      MpiWrapper::waitAny( commData.size,
                            commData.mpiRecvBufferRequest.data(),
                            &neighborIndex,
                            commData.mpiRecvBufferStatus.data() );
@@ -118,39 +118,40 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
   newElemsToSendData.resize( elemManager.numRegions() );
   newElemsToSend.resize( elemManager.numRegions() );
 
+  //
   for( localIndex er=0; er<elemManager.numRegions(); ++er )
   {
     ElementRegionBase & elemRegion = elemManager.getRegion( er );
     newElemsToSendData[er].resize( elemRegion.numSubRegions() );
     newElemsToSend[er].resize( elemRegion.numSubRegions() );
 
-    elemRegion.forElementSubRegionsIndex< EmbeddedSurfaceSubRegion >( [&]( localIndex const esr,
-                                                                       EmbeddedSurfaceSubRegion & subRegion )
+    if ( newObjects.newElements.size() > 0 ) // this map may be completely empty on some ranks.
     {
-      localIndex_array & elemGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
-      arrayView1d< integer > const & subRegionGhostRank = subRegion.ghostRank();
-      for( localIndex const & k : newObjects.newElements.at( {er, esr} ) )
+      elemRegion.forElementSubRegionsIndex< EmbeddedSurfaceSubRegion >( [&]( localIndex const esr,
+          EmbeddedSurfaceSubRegion & subRegion )
       {
-        if( subRegionGhostRank[k] == neighborRank )
+        localIndex_array & elemGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
+        // arrayView1d< integer > const & subRegionGhostRank = subRegion.ghostRank();
+        for( localIndex const & k : newObjects.newElements.at( {er, esr} ) )
         {
-          newElemsToSendData[er][esr].emplace_back( k );
-          elemGhostsToSend.emplace_back( k );
+          // if( subRegionGhostRank[k] == neighborRank )
+          {
+            newElemsToSendData[er][esr].emplace_back( k );
+            elemGhostsToSend.emplace_back( k );
+          }
         }
-      }
-      newElemsToSend[er][esr] = newElemsToSendData[er][esr];
-    } );
+        newElemsToSend[er][esr] = newElemsToSendData[er][esr];
+      } );
+    }
   }
+
 
   // TODO for now I am not packing maps but eventually I ll probably need to
   int bufferSize = 0;
 
   bufferSize += elemManager.PackGlobalMapsSize( newElemsToSend );
 
-  //bufferSize += elemManager.PackUpDownMapsSize( newElemsToSend );
-
   bufferSize += elemManager.PackSize( {}, newElemsToSend );
-
-  //bufferSize += elemManager.PackUpDownMapsSize( modElemsToSend );
 
   neighbor->resizeSendBuffer( commID, bufferSize );
 
@@ -161,11 +162,7 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
 
   packedSize += elemManager.PackGlobalMaps( sendBufferPtr, newElemsToSend );
 
-  // packedSize += elemManager.PackUpDownMaps( sendBufferPtr, newElemsToSend );
-
   packedSize += elemManager.Pack( sendBufferPtr, {}, newElemsToSend );
-
-  // packedSize += elemManager.PackUpDownMaps( sendBufferPtr, modElemsToSend );
 
   GEOSX_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
 
@@ -197,6 +194,8 @@ void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommun
       newGhostElems[er][esr].set( newGhostElemsData[er][esr] );
     }
   }
+
+  unpackedSize += elemManager.UnpackGlobalMaps( receiveBufferPtr, newGhostElems );
 
   unpackedSize += elemManager.Unpack( receiveBufferPtr, newGhostElems );
 
