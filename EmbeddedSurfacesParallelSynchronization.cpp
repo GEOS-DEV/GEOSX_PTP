@@ -151,6 +151,8 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
 
   bufferSize += elemManager.PackGlobalMapsSize( newElemsToSend );
 
+  bufferSize += elemManager.PackUpDownMapsSize( newElemsToSend );
+
   bufferSize += elemManager.PackSize( {}, newElemsToSend );
 
   neighbor->resizeSendBuffer( commID, bufferSize );
@@ -161,6 +163,8 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
   int packedSize = 0;
 
   packedSize += elemManager.PackGlobalMaps( sendBufferPtr, newElemsToSend );
+
+  packedSize += elemManager.PackUpDownMaps( sendBufferPtr, newElemsToSend );
 
   packedSize += elemManager.Pack( sendBufferPtr, {}, newElemsToSend );
 
@@ -196,6 +200,8 @@ void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommun
   }
 
   unpackedSize += elemManager.UnpackGlobalMaps( receiveBufferPtr, newGhostElems );
+
+  unpackedSize += elemManager.UnpackUpDownMaps( receiveBufferPtr, newGhostElems, true );
 
   unpackedSize += elemManager.Unpack( receiveBufferPtr, newGhostElems );
 
