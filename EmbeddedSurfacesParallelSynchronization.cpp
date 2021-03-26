@@ -108,19 +108,38 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
                                                                        MeshLevel & mesh,
                                                                        NewObjectLists & newObjects )
 {
-  //EmbeddedSurfaceNodeManager & nodeManager = mesh.getEmbSurfNodeManager();
+  EmbeddedSurfaceNodeManager & nodeManager = mesh.getEmbSurfNodeManager();
+  EdgeManager const & edgeManager = mesh.getEdgeManager();
   ElementRegionManager & elemManager = mesh.getElemManager();
 
   int neighborRank = neighbor->neighborRank();
 
+  localIndex_array newNodesToSend;
   map< std::pair<localIndex,localIndex>, std::set<localIndex> > newSurfaceGhostsToSend;
 
   ElementRegionManager::ElementViewAccessor< arrayView1d< localIndex > > newElemsToSend;
   array1d< array1d< localIndex_array > > newElemsToSendData;
 
+  arrayView1d< localIndex const> const & edgeGhostsToSend = edgeManager.getNeighborData( neighbor->neighborRank() ).ghostsToSend();
+  arrayView1d< localIndex > const & parentIndex = nodeManager.getExtrinsicData< extrinsicMeshData::ParentIndex >();
+
+  for( auto const ni : newObjects.newNodes )
+  {
+    for( localIndex a=0; a < edgeGhostsToSend.size(); a++)
+    {
+      if( edgeGhostsToSend[a] == parentIndex[ni] )
+      {
+        // a node is sent if the edge on which it was created had to be sent.
+        newNodesToSend.emplace_back( ni );
+      }
+    }
+  }
+
+  std::cout << "new nodes to send size: " << newNodesToSend.size() << std:: endl;
+  std::cout << "new nodes to send: " << newNodesToSend << std:: endl;
+
   newElemsToSendData.resize( elemManager.numRegions() );
   newElemsToSend.resize( elemManager.numRegions() );
-
   //
   if ( newObjects.newElements.size() > 0 ) // this map may be completely empty on some ranks.
   {
@@ -176,12 +195,16 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
   }
 
   // TODO for now I am not packing maps but eventually I ll probably need to
+  parallelDeviceEvents sizeEvents;
   int bufferSize = 0;
 
+  bufferSize += nodeManager.packGlobalMapsSize( newNodesToSend, 0 );
   bufferSize += elemManager.PackGlobalMapsSize( newElemsToSend );
 
+  bufferSize += nodeManager.packUpDownMapsSize( newNodesToSend );
   bufferSize += elemManager.PackUpDownMapsSize( newElemsToSend );
 
+  bufferSize += nodeManager.packSize( {}, newNodesToSend, 0, false, sizeEvents );
   bufferSize += elemManager.PackSize( {}, newElemsToSend );
 
   neighbor->resizeSendBuffer( commID, bufferSize );
@@ -189,12 +212,16 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
   buffer_type & sendBuffer = neighbor->sendBuffer( commID );
   buffer_unit_type * sendBufferPtr = sendBuffer.data();
 
+  parallelDeviceEvents packEvents;
   int packedSize = 0;
 
+  packedSize += nodeManager.packGlobalMaps( sendBufferPtr, newNodesToSend, 0 );
   packedSize += elemManager.PackGlobalMaps( sendBufferPtr, newElemsToSend );
 
+  packedSize += nodeManager.packUpDownMaps( sendBufferPtr, newNodesToSend );
   packedSize += elemManager.PackUpDownMaps( sendBufferPtr, newElemsToSend );
 
+  packedSize += nodeManager.pack( sendBufferPtr, {}, newNodesToSend, 0, false, packEvents );
   packedSize += elemManager.Pack( sendBufferPtr, {}, newElemsToSend );
 
   GEOSX_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
@@ -210,15 +237,20 @@ void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommun
 {
   int unpackedSize = 0;
 
+  EmbeddedSurfaceNodeManager & nodeManager = mesh.getEmbSurfNodeManager();
   ElementRegionManager & elemManager = mesh.getElemManager();
 
   buffer_type const & receiveBuffer = neighbor->receiveBuffer( commID );
   buffer_unit_type const * receiveBufferPtr = receiveBuffer.data();
 
+  localIndex_array & nodeGhostsToRecv = nodeManager.getNeighborData( neighbor->neighborRank() ).ghostsToReceive();
+
+  localIndex_array newGhostNodes;
   ElementRegionManager::ElementReferenceAccessor< localIndex_array > newGhostElems;
   array1d< array1d< localIndex_array > > newGhostElemsData;
   newGhostElems.resize( elemManager.numRegions() );
   newGhostElemsData.resize( elemManager.numRegions() );
+
   for( localIndex er=0; er<elemManager.numRegions(); ++er )
   {
     ElementRegionBase & elemRegion = elemManager.getRegion( er );
@@ -230,11 +262,27 @@ void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommun
     }
   }
 
+  parallelDeviceEvents events;
+
+  unpackedSize += nodeManager.unpackGlobalMaps( receiveBufferPtr, newGhostNodes, 0 );
   unpackedSize += elemManager.UnpackGlobalMaps( receiveBufferPtr, newGhostElems );
 
+  unpackedSize += nodeManager.unpackUpDownMaps( receiveBufferPtr, newGhostNodes, true, true );
   unpackedSize += elemManager.UnpackUpDownMaps( receiveBufferPtr, newGhostElems, true );
 
+  unpackedSize += nodeManager.unpack( receiveBufferPtr, newGhostNodes, 0, false, events );
   unpackedSize += elemManager.Unpack( receiveBufferPtr, newGhostElems );
+
+  waitAllDeviceEvents( events );
+
+  if( newGhostNodes.size() > 0 )
+  {
+    nodeGhostsToRecv.move( LvArray::MemorySpace::CPU );
+    for( localIndex a=0; a<newGhostNodes.size(); ++a )
+    {
+      nodeGhostsToRecv.emplace_back( newGhostNodes[a] );
+    }
+  }
 
   elemManager.forElementSubRegionsComplete< ElementSubRegionBase >(
     [&]( localIndex const er, localIndex const esr, ElementRegionBase &, ElementSubRegionBase & subRegion )
