@@ -23,4 +23,5 @@ blt_add_library( NAME             GEOSX_PTP
                  SOURCES          ${componentSources}
                  HEADERS          ${componentHeaders}
                  DEPENDS_ON       ${dependencyList}
+                 OBJECT           ${buildAsObj}
                )
