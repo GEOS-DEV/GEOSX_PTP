@@ -135,9 +135,6 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
     }
   }
 
-  std::cout << "new nodes to send size: " << newNodesToSend.size() << std:: endl;
-  std::cout << "new nodes to send: " << newNodesToSend << std:: endl;
-
   newElemsToSendData.resize( elemManager.numRegions() );
   newElemsToSend.resize( elemManager.numRegions() );
   //
@@ -224,6 +221,7 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
   packedSize += nodeManager.pack( sendBufferPtr, {}, newNodesToSend, 0, false, packEvents );
   packedSize += elemManager.Pack( sendBufferPtr, {}, newElemsToSend );
 
+
   GEOSX_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
 
 
@@ -243,13 +241,12 @@ void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommun
   buffer_type const & receiveBuffer = neighbor->receiveBuffer( commID );
   buffer_unit_type const * receiveBufferPtr = receiveBuffer.data();
 
-  localIndex_array & nodeGhostsToRecv = nodeManager.getNeighborData( neighbor->neighborRank() ).ghostsToReceive();
-
   localIndex_array newGhostNodes;
   ElementRegionManager::ElementReferenceAccessor< localIndex_array > newGhostElems;
   array1d< array1d< localIndex_array > > newGhostElemsData;
   newGhostElems.resize( elemManager.numRegions() );
   newGhostElemsData.resize( elemManager.numRegions() );
+
 
   for( localIndex er=0; er<elemManager.numRegions(); ++er )
   {
@@ -275,15 +272,6 @@ void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommun
 
   waitAllDeviceEvents( events );
 
-  if( newGhostNodes.size() > 0 )
-  {
-    nodeGhostsToRecv.move( LvArray::MemorySpace::CPU );
-    for( localIndex a=0; a<newGhostNodes.size(); ++a )
-    {
-      nodeGhostsToRecv.emplace_back( newGhostNodes[a] );
-    }
-  }
-
   elemManager.forElementSubRegionsComplete< ElementSubRegionBase >(
     [&]( localIndex const er, localIndex const esr, ElementRegionBase &, ElementSubRegionBase & subRegion )
   {
@@ -301,6 +289,201 @@ void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommun
   } );
 }
 
+void EmebeddedSurfacesParallelSynchronization::reSyncElemToNodesMap( MeshLevel & mesh,
+                                                                     std::vector< NeighborCommunicator > & neighbors,
+                                                                     NewObjectLists & newObjects )
+{
+  int mpiCommOrder = 0; // TODO need to think if this is necessary.
+
+    //************************************************************************************************
+    // We need to send over the new embedded surfaces and related objects for those whose parents are ghosts on neighbors.
+
+    MPI_iCommData commData;
+    commData.resize( neighbors.size());
+    for( unsigned int neighborIndex=0; neighborIndex<neighbors.size(); ++neighborIndex )
+    {
+      NeighborCommunicator & neighbor = neighbors[neighborIndex];
+
+      packElemToNodeMapToGhosts( &neighbor,
+                                 commData.commID,
+                                 mesh,
+                                 newObjects );
+
+      neighbor.mpiISendReceiveBufferSizes( commData.commID,
+                                           commData.mpiSizeSendBufferRequest[neighborIndex],
+                                           commData.mpiSizeRecvBufferRequest[neighborIndex],
+                                           MPI_COMM_GEOSX );
+
+    }
+
+    for( unsigned int count=0; count<neighbors.size(); ++count )
+    {
+      int neighborIndex;
+      MpiWrapper::waitAny( commData.size,
+                           commData.mpiSizeRecvBufferRequest.data(),
+                           &neighborIndex,
+                           commData.mpiSizeRecvBufferStatus.data() );
+
+      NeighborCommunicator & neighbor = neighbors[neighborIndex];
+
+      neighbor.mpiISendReceiveBuffers( commData.commID,
+                                       commData.mpiSendBufferRequest[neighborIndex],
+                                       commData.mpiRecvBufferRequest[neighborIndex],
+                                       MPI_COMM_GEOSX );
+    }
+
+
+    for( unsigned int count=0; count<neighbors.size(); ++count )
+    {
+
+      int neighborIndex = count;
+      if( mpiCommOrder == 0 )
+      {
+        MpiWrapper::waitAny( commData.size,
+                             commData.mpiRecvBufferRequest.data(),
+                             &neighborIndex,
+                             commData.mpiRecvBufferStatus.data() );
+      }
+      else
+      {
+        MpiWrapper::wait( commData.mpiRecvBufferRequest.data() + count,
+                          commData.mpiRecvBufferStatus.data() + count );
+      }
+
+      NeighborCommunicator & neighbor = neighbors[neighborIndex];
+
+      unpackElemToNodeMapToGhosts( &neighbor, commData.commID, mesh );
+    }
+}
+
+void EmebeddedSurfacesParallelSynchronization::packElemToNodeMapToGhosts( NeighborCommunicator * const neighbor,
+                                                                          int commID,
+                                                                          MeshLevel & mesh,
+                                                                          NewObjectLists & newObjects )
+{
+  ElementRegionManager & elemManager = mesh.getElemManager();
+
+  int neighborRank = neighbor->neighborRank();
+
+  map< std::pair<localIndex,localIndex>, std::set<localIndex> > newSurfaceGhostsToSend;
+
+  ElementRegionManager::ElementViewAccessor< arrayView1d< localIndex > > newElemsToSend;
+  array1d< array1d< localIndex_array > > newElemsToSendData;
+
+  newElemsToSendData.resize( elemManager.numRegions() );
+  newElemsToSend.resize( elemManager.numRegions() );
+  //
+  if ( newObjects.newElements.size() > 0 ) // this map may be completely empty on some ranks.
+  {
+    elemManager.forElementSubRegionsComplete< EmbeddedSurfaceSubRegion >(
+        [&]( localIndex const er, localIndex const esr, ElementRegionBase &, EmbeddedSurfaceSubRegion & subRegion )
+    {
+
+      FixedToManyElementRelation const & surfaceElementsToCells = subRegion.getToCellRelation();
+
+      for( localIndex const & k : newObjects.newElements.at( {er, esr} ) )
+      {
+        localIndex const elemRegionIndex  = surfaceElementsToCells.m_toElementRegion[k][0];
+        localIndex const elemSubRegionIndex = surfaceElementsToCells.m_toElementSubRegion[k][0];
+        localIndex const elemIndex = surfaceElementsToCells.m_toElementIndex[k][0];
+
+        CellElementRegion const & elemRegion = elemManager.getRegion< CellElementRegion >( elemRegionIndex );
+        CellBlock const & elemSubRegion = elemRegion.getSubRegion< CellElementSubRegion >( elemSubRegionIndex );
+
+        arrayView1d< localIndex const > const & elemGhostsToSend =
+            elemSubRegion.getNeighborData( neighborRank ).ghostsToSend();
+
+        for ( localIndex a = 0; a < elemGhostsToSend.size(); a++ )
+        {
+          if ( elemIndex == elemGhostsToSend[a] )
+          {
+            newSurfaceGhostsToSend[ {er, esr} ].insert( k );
+            break;
+          }
+        }
+      }
+    } );
+   }
+
+  for( localIndex er=0; er<elemManager.numRegions(); ++er )
+  {
+    ElementRegionBase & elemRegion = elemManager.getRegion( er );
+    newElemsToSendData[er].resize( elemRegion.numSubRegions() );
+    newElemsToSend[er].resize( elemRegion.numSubRegions() );
+    if ( newSurfaceGhostsToSend.size() > 0 ) // this map may be completely empty on some ranks.
+    {
+      elemRegion.forElementSubRegionsIndex< EmbeddedSurfaceSubRegion >( [&]( localIndex const esr,
+          EmbeddedSurfaceSubRegion & subRegion )
+      {
+        localIndex_array & surfaceElemGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
+        for( localIndex const & k : newSurfaceGhostsToSend.at( {er, esr} ) )
+        {
+          newElemsToSendData[er][esr].emplace_back( k );
+          surfaceElemGhostsToSend.emplace_back( k );
+        }
+        newElemsToSend[er][esr] = newElemsToSendData[er][esr];
+      } );
+    }
+  }
+
+  // TODO for now I am not packing maps but eventually I ll probably need to
+  parallelDeviceEvents sizeEvents;
+  int bufferSize = 0;
+
+  bufferSize += elemManager.PackUpDownMapsSize( newElemsToSend );
+
+  neighbor->resizeSendBuffer( commID, bufferSize );
+
+  buffer_type & sendBuffer = neighbor->sendBuffer( commID );
+  buffer_unit_type * sendBufferPtr = sendBuffer.data();
+
+  parallelDeviceEvents packEvents;
+  int packedSize = 0;
+
+  packedSize += elemManager.PackUpDownMaps( sendBufferPtr, newElemsToSend );
+
+  GEOSX_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
+
+  GEOSX_UNUSED_VAR(commID);
+  neighbor->mpiISendReceive( commID, MPI_COMM_GEOSX );
+}
+
+void EmebeddedSurfacesParallelSynchronization::unpackElemToNodeMapToGhosts( NeighborCommunicator * const neighbor,
+                                                                            int commID,
+                                                                            MeshLevel & mesh )
+{
+  int unpackedSize = 0;
+
+  ElementRegionManager & elemManager = mesh.getElemManager();
+
+  buffer_type const & receiveBuffer = neighbor->receiveBuffer( commID );
+  buffer_unit_type const * receiveBufferPtr = receiveBuffer.data();
+
+  localIndex_array newGhostNodes;
+  ElementRegionManager::ElementReferenceAccessor< localIndex_array > newGhostElems;
+  array1d< array1d< localIndex_array > > newGhostElemsData;
+  newGhostElems.resize( elemManager.numRegions() );
+  newGhostElemsData.resize( elemManager.numRegions() );
+
+
+  for( localIndex er=0; er<elemManager.numRegions(); ++er )
+  {
+    ElementRegionBase & elemRegion = elemManager.getRegion( er );
+    newGhostElemsData[er].resize( elemRegion.numSubRegions() );
+    newGhostElems[er].resize( elemRegion.numSubRegions() );
+    for( localIndex esr=0; esr<elemRegion.numSubRegions(); ++esr )
+    {
+      newGhostElems[er][esr].set( newGhostElemsData[er][esr] );
+    }
+  }
+
+
+  parallelDeviceEvents events;
+
+  unpackedSize += elemManager.UnpackUpDownMaps( receiveBufferPtr, newGhostElems, true );
+
+  waitAllDeviceEvents( events );
+}
 
 
 } /* namespace geosx */

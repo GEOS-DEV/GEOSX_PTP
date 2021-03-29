@@ -48,6 +48,19 @@ public:
                                  int commID,
                                  MeshLevel & mesh );
 
+  static void reSyncElemToNodesMap( MeshLevel & mesh,
+                                    std::vector< NeighborCommunicator > & neighbors,
+                                    NewObjectLists & newObjects );
+
+  static void packElemToNodeMapToGhosts( NeighborCommunicator * const neighbor,
+                                         int commID,
+                                         MeshLevel & mesh,
+                                         NewObjectLists & newObjects );
+
+  static void unpackElemToNodeMapToGhosts( NeighborCommunicator * const neighbor,
+                                           int commID,
+                                           MeshLevel & mesh );
+
 };
 
 } /* namespace lvarray */
