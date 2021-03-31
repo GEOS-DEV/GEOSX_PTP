@@ -48,18 +48,20 @@ public:
                                  int commID,
                                  MeshLevel & mesh );
 
-  static void reSyncElemToNodesMap( MeshLevel & mesh,
-                                    std::vector< NeighborCommunicator > & neighbors,
-                                    NewObjectLists & newObjects );
 
-  static void packElemToNodeMapToGhosts( NeighborCommunicator * const neighbor,
-                                         int commID,
-                                         MeshLevel & mesh,
-                                         NewObjectLists & newObjects );
+  static void synchronizeFracturedElements( MeshLevel & mesh,
+                                            std::vector< NeighborCommunicator > & neighbors,
+                                            string const fractureRegionName );
 
-  static void unpackElemToNodeMapToGhosts( NeighborCommunicator * const neighbor,
-                                           int commID,
-                                           MeshLevel & mesh );
+  static void packFracturedToGhosts( NeighborCommunicator * const neighbor,
+                                     int commID,
+                                     MeshLevel & mesh,
+                                     string const fractureRegionName );
+
+  static void unpackFracturedToGhosts( NeighborCommunicator * const neighbor,
+                                       int commID,
+                                       MeshLevel & mesh,
+                                       string const fractureRegionName );
 
 };
 
