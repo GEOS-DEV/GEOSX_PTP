@@ -22,7 +22,7 @@
 #include "common/TimingMacros.hpp"
 #include "mesh/ElementRegionManager.hpp"
 #include "mesh/ExtrinsicMeshData.hpp"
-#include "mpiCommunications/CommunicationTools.hpp"
+#include "mesh/mpiCommunications/CommunicationTools.hpp"
 
 
 namespace geosx
