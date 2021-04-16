@@ -125,14 +125,14 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
 
   for( auto const ni : newObjects.newNodes )
   {
-    for( localIndex a=0; a < edgeGhostsToSend.size(); a++ )
+    forAll< serialPolicy >( edgeGhostsToSend.size(), [=, &newNodesToSend] ( localIndex const a )
     {
       if( edgeGhostsToSend[a] == parentIndex[ni] )
       {
         // a node is sent if the edge on which it was created had to be sent.
         newNodesToSend.emplace_back( ni );
       }
-    }
+    } );
   }
 
   newElemsToSendData.resize( elemManager.numRegions() );
@@ -158,14 +158,14 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
         arrayView1d< localIndex const > const & elemGhostsToSend =
           elemSubRegion.getNeighborData( neighborRank ).ghostsToSend();
 
-        for( localIndex a = 0; a < elemGhostsToSend.size(); a++ )
+        forAll< serialPolicy >( elemGhostsToSend.size(), [=, &newSurfaceGhostsToSend] ( localIndex const a )
         {
           if( elemIndex == elemGhostsToSend[a] )
           {
             newSurfaceGhostsToSend[ {er, esr} ].insert( k );
-            break;
+            return;
           }
-        }
+        } );
       }
     } );
   }
@@ -181,6 +181,8 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
                                                                              EmbeddedSurfaceSubRegion & subRegion )
       {
         localIndex_array & surfaceElemGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
+        surfaceElemGhostsToSend.move( LvArray::MemorySpace::CPU );
+
         for( localIndex const & k : newSurfaceGhostsToSend.at( {er, esr} ) )
         {
           newElemsToSendData[er][esr].emplace_back( k );
@@ -368,7 +370,8 @@ void EmebeddedSurfacesParallelSynchronization::packFracturedToGhosts( NeighborCo
                                                                        CellElementSubRegion & subRegion )
     {
       // we send all the ghosts
-      localIndex_array & elemsGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
+      arrayView1d< localIndex const >  const & elemsGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
+      elemsGhostsToSend.move( LvArray::MemorySpace::CPU );
       for( localIndex const & k : elemsGhostsToSend )
       {
         elemsToSendData[er][esr].emplace_back( k );
@@ -379,8 +382,6 @@ void EmebeddedSurfacesParallelSynchronization::packFracturedToGhosts( NeighborCo
 
   parallelDeviceEvents sizeEvents;
   int bufferSize = 0;
-
-  // bufferSize += elemManager.PackGlobalMapsSize( newElemsToSend );
 
   bufferSize += elemManager.packFracturedElementsSize( elemsToSend, fractureRegionName );
 
@@ -419,7 +420,6 @@ void EmebeddedSurfacesParallelSynchronization::unpackFracturedToGhosts( Neighbor
   ghostElems.resize( elemManager.numRegions() );
   ghostElemsData.resize( elemManager.numRegions() );
 
-
   for( localIndex er=0; er<elemManager.numRegions(); ++er )
   {
     ElementRegionBase & elemRegion = elemManager.getRegion( er );
@@ -433,27 +433,9 @@ void EmebeddedSurfacesParallelSynchronization::unpackFracturedToGhosts( Neighbor
 
   parallelDeviceEvents events;
 
-  // unpackedSize += elemManager.UnpackGlobalMaps( receiveBufferPtr, ghostElems );
-
   unpackedSize += elemManager.unpackFracturedElements( receiveBufferPtr, ghostElems, fractureRegionName );
 
   waitAllDeviceEvents( events );
-
-//  elemManager.forElementSubRegionsComplete< ElementSubRegionBase >(
-//    [&]( localIndex const er, localIndex const esr, ElementRegionBase &, ElementSubRegionBase & subRegion )
-//  {
-//    localIndex_array & elemGhostsToReceive = subRegion.getNeighborData( neighbor->neighborRank() ).ghostsToReceive();
-//
-//    if( newGhostElemsData[er][esr].size() > 0 )
-//    {
-//      elemGhostsToReceive.move( LvArray::MemorySpace::CPU );
-//
-//      for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
-//      {
-//        elemGhostsToReceive.emplace_back( newElemIndex );
-//      }
-//    }
-//  } );
 }
 
 } /* namespace geosx */
