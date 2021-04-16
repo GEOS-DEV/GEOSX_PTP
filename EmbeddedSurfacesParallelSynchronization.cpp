@@ -115,7 +115,7 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
   int neighborRank = neighbor->neighborRank();
 
   localIndex_array newNodesToSend;
-  map< std::pair< localIndex, localIndex >, std::set< localIndex > > newSurfaceGhostsToSend;
+  unordered_map< std::pair< localIndex, localIndex >, std::set< localIndex > > newSurfaceGhostsToSend;
 
   ElementRegionManager::ElementViewAccessor< arrayView1d< localIndex > > newElemsToSend;
   array1d< array1d< localIndex_array > > newElemsToSendData;
