@@ -30,11 +30,6 @@ namespace geosx
 
 using namespace dataRepository;
 
-EmebeddedSurfacesParallelSynchronization::EmebeddedSurfacesParallelSynchronization()
-{}
-
-EmebeddedSurfacesParallelSynchronization::~EmebeddedSurfacesParallelSynchronization()
-{}
 
 void EmebeddedSurfacesParallelSynchronization::synchronizeNewSurfaces( MeshLevel & mesh,
                                                                        std::vector< NeighborCommunicator > & neighbors,

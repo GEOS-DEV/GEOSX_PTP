@@ -31,8 +31,12 @@ struct ModifiedObjectLists;
 class EmebeddedSurfacesParallelSynchronization
 {
 public:
-  EmebeddedSurfacesParallelSynchronization();
-  ~EmebeddedSurfacesParallelSynchronization();
+  EmebeddedSurfacesParallelSynchronization() = delete;
+  ~EmebeddedSurfacesParallelSynchronization() = delete;
+  EmebeddedSurfacesParallelSynchronization( EmebeddedSurfacesParallelSynchronization const & ) = delete;
+  EmebeddedSurfacesParallelSynchronization( EmebeddedSurfacesParallelSynchronization && ) = delete;
+  EmebeddedSurfacesParallelSynchronization & operator=( EmebeddedSurfacesParallelSynchronization const & ) = delete;
+  EmebeddedSurfacesParallelSynchronization & operator=( EmebeddedSurfacesParallelSynchronization && ) = delete;
 
   static void synchronizeNewSurfaces( MeshLevel & mesh,
                                       std::vector< NeighborCommunicator > & neighbors,
