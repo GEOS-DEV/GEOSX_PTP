@@ -277,7 +277,7 @@ void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommun
 
     if( newGhostElemsData[er][esr].size() > 0 )
     {
-      forAll< serialPolicy > (  newGhostElemsData[er][esr].size(), [=, &elemGhostsToReceive] ( localIndex const k )
+      forAll< serialPolicy >( newGhostElemsData[er][esr].size(), [=, &elemGhostsToReceive] ( localIndex const k )
       {
         localIndex const & newElemIndex = newGhostElemsData[er][esr][k];
         elemGhostsToReceive.emplace_back( newElemIndex );
