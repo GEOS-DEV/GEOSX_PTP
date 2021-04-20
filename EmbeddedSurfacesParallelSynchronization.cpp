@@ -110,13 +110,13 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
   int neighborRank = neighbor->neighborRank();
 
   localIndex_array newNodesToSend;
-  map< std::pair< localIndex, localIndex >, std::vector< localIndex > > newSurfaceGhostsToSend;
+  map< std::pair< localIndex, localIndex >, std::set< localIndex > > newSurfaceGhostsToSend;
 
   ElementRegionManager::ElementViewAccessor< arrayView1d< localIndex > > newElemsToSend;
   array1d< array1d< localIndex_array > > newElemsToSendData;
 
   arrayView1d< localIndex const > const & edgeGhostsToSend = edgeManager.getNeighborData( neighbor->neighborRank() ).ghostsToSend();
-  arrayView1d< localIndex > const & parentIndex = nodeManager.getExtrinsicData< extrinsicMeshData::ParentIndex >();
+  arrayView1d< localIndex > const & parentIndex = nodeManager.getExtrinsicData< extrinsicMeshData::ParentEdgeIndex >();
 
   for( auto const ni : newObjects.newNodes )
   {
@@ -157,7 +157,7 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
         {
           if( elemIndex == elemGhostsToSend[a] )
           {
-            newSurfaceGhostsToSend[ {er, esr} ].emplace_back( k );
+            newSurfaceGhostsToSend[ {er, esr} ].insert( k );
             return;
           }
         } );
@@ -176,17 +176,19 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
                                                                              EmbeddedSurfaceSubRegion & subRegion )
       {
         localIndex_array & surfaceElemGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
+        surfaceElemGhostsToSend.move( LvArray::MemorySpace::CPU );
 
-        std::vector< localIndex >  newGhostsElements = newSurfaceGhostsToSend.at( {er, esr} );
-        forAll< serialPolicy >( newGhostsElements.size(), [=, &newElemsToSendData, &surfaceElemGhostsToSend] (localIndex const k)
+        for( localIndex const & k : newSurfaceGhostsToSend.at( {er, esr} ) )
         {
-          newElemsToSendData[er][esr].emplace_back( newGhostsElements[k] );
-          surfaceElemGhostsToSend.emplace_back( newGhostsElements[k] );
-        } ) ;
+          newElemsToSendData[er][esr].emplace_back( k );
+          surfaceElemGhostsToSend.emplace_back( k );
+        }
         newElemsToSend[er][esr] = newElemsToSendData[er][esr];
       } );
     }
   }
+
+
 
   parallelDeviceEvents sizeEvents;
   int bufferSize = 0;
@@ -386,8 +388,6 @@ void EmebeddedSurfacesParallelSynchronization::packFracturedToGhosts( NeighborCo
 
   parallelDeviceEvents packEvents;
   int packedSize = 0;
-
-  // packedSize += elemManager.PackGlobalMaps( sendBufferPtr, newElemsToSend );
 
   packedSize += elemManager.packFracturedElements( sendBufferPtr, elemsToSend, fractureRegionName );
 
