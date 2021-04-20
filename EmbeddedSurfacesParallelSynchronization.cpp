@@ -110,7 +110,7 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
   int neighborRank = neighbor->neighborRank();
 
   localIndex_array newNodesToSend;
-  map< std::pair< localIndex, localIndex >, std::set< localIndex > > newSurfaceGhostsToSend;
+  map< std::pair< localIndex, localIndex >, std::vector< localIndex > > newSurfaceGhostsToSend;
 
   ElementRegionManager::ElementViewAccessor< arrayView1d< localIndex > > newElemsToSend;
   array1d< array1d< localIndex_array > > newElemsToSendData;
@@ -157,7 +157,7 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
         {
           if( elemIndex == elemGhostsToSend[a] )
           {
-            newSurfaceGhostsToSend[ {er, esr} ].insert( k );
+            newSurfaceGhostsToSend[ {er, esr} ].emplace_back( k );
             return;
           }
         } );
@@ -176,13 +176,13 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
                                                                              EmbeddedSurfaceSubRegion & subRegion )
       {
         localIndex_array & surfaceElemGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
-        surfaceElemGhostsToSend.move( LvArray::MemorySpace::CPU );
 
-        for( localIndex const & k : newSurfaceGhostsToSend.at( {er, esr} ) )
+        std::vector< localIndex >  newGhostsElements = newSurfaceGhostsToSend.at( {er, esr} );
+        forAll< serialPolicy >( newGhostsElements.size(), [=, &newElemsToSendData, &surfaceElemGhostsToSend] (localIndex const k)
         {
-          newElemsToSendData[er][esr].emplace_back( k );
-          surfaceElemGhostsToSend.emplace_back( k );
-        }
+          newElemsToSendData[er][esr].emplace_back( newGhostsElements[k] );
+          surfaceElemGhostsToSend.emplace_back( newGhostsElements[k] );
+        } ) ;
         newElemsToSend[er][esr] = newElemsToSendData[er][esr];
       } );
     }
@@ -275,12 +275,11 @@ void EmebeddedSurfacesParallelSynchronization::unpackNewToGhosts( NeighborCommun
 
     if( newGhostElemsData[er][esr].size() > 0 )
     {
-      elemGhostsToReceive.move( LvArray::MemorySpace::CPU );
-
-      for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
+      forAll< serialPolicy > (  newGhostElemsData[er][esr].size(), [=, &elemGhostsToReceive] ( localIndex const k )
       {
+        localIndex const & newElemIndex = newGhostElemsData[er][esr][k];
         elemGhostsToReceive.emplace_back( newElemIndex );
-      }
+      } );
     }
   } );
 }
@@ -367,10 +366,10 @@ void EmebeddedSurfacesParallelSynchronization::packFracturedToGhosts( NeighborCo
       // we send all the ghosts
       arrayView1d< localIndex const >  const & elemsGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
       elemsGhostsToSend.move( LvArray::MemorySpace::CPU );
-      for( localIndex const & k : elemsGhostsToSend )
+      forAll< serialPolicy >( elemsGhostsToSend.size(), [=, &elemsToSendData] ( localIndex const k )
       {
-        elemsToSendData[er][esr].emplace_back( k );
-      }
+        elemsToSendData[er][esr].emplace_back( elemsGhostsToSend[k] );
+      } );
       elemsToSend[er][esr] = elemsToSendData[er][esr];
     } );
   }
