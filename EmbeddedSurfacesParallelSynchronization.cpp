@@ -33,10 +33,9 @@ using namespace dataRepository;
 
 void EmebeddedSurfacesParallelSynchronization::synchronizeNewSurfaces( MeshLevel & mesh,
                                                                        std::vector< NeighborCommunicator > & neighbors,
-                                                                       NewObjectLists & newObjects )
+                                                                       NewObjectLists & newObjects,
+                                                                       int const mpiCommOrder )
 {
-  int mpiCommOrder = 0; // TODO need to think if this is necessary.
-
   //************************************************************************************************
   // We need to send over the new embedded surfaces and related objects for those whose parents are ghosts on neighbors.
 
