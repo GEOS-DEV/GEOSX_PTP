@@ -1,13 +1,15 @@
 #
 # Specify all headers
 #
-set( componentHeaders "ParallelTopologyChange.hpp" )
+set( componentHeaders "ParallelTopologyChange.hpp"
+                      "EmbeddedSurfacesParallelSynchronization.cpp" )
 
 #
 # Specify all sources
 #
 
-set( componentSources "ParallelTopologyChange.cpp" )
+set( componentSources "ParallelTopologyChange.cpp" 
+                      "EmbeddedSurfacesParallelSynchronization.cpp" )
 
 set( dependencyList mesh )
 
