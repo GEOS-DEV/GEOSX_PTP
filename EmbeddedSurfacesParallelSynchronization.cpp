@@ -147,7 +147,7 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
         localIndex const elemIndex = surfaceElementsToCells.m_toElementIndex[k][0];
 
         CellElementRegion const & elemRegion = elemManager.getRegion< CellElementRegion >( elemRegionIndex );
-        CellBlock const & elemSubRegion = elemRegion.getSubRegion< CellElementSubRegion >( elemSubRegionIndex );
+        CellElementSubRegion const & elemSubRegion = elemRegion.getSubRegion< CellElementSubRegion >( elemSubRegionIndex );
 
         arrayView1d< localIndex const > const & elemGhostsToSend =
           elemSubRegion.getNeighborData( neighborRank ).ghostsToSend();
