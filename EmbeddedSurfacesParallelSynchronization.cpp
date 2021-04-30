@@ -176,7 +176,7 @@ void EmebeddedSurfacesParallelSynchronization::packNewObjectsToGhosts( NeighborC
                                                                              EmbeddedSurfaceSubRegion & subRegion )
       {
         localIndex_array & surfaceElemGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
-        surfaceElemGhostsToSend.move( LvArray::MemorySpace::CPU );
+        surfaceElemGhostsToSend.move( LvArray::MemorySpace::host );
 
         for( localIndex const & k : newSurfaceGhostsToSend.at( {er, esr} ) )
         {
@@ -367,7 +367,7 @@ void EmebeddedSurfacesParallelSynchronization::packFracturedToGhosts( NeighborCo
     {
       // we send all the ghosts
       arrayView1d< localIndex const >  const & elemsGhostsToSend = subRegion.getNeighborData( neighborRank ).ghostsToSend();
-      elemsGhostsToSend.move( LvArray::MemorySpace::CPU );
+      elemsGhostsToSend.move( LvArray::MemorySpace::host );
       forAll< serialPolicy >( elemsGhostsToSend.size(), [=, &elemsToSendData] ( localIndex const k )
       {
         elemsToSendData[er][esr].emplace_back( elemsGhostsToSend[k] );

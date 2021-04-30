@@ -628,7 +628,7 @@ static void FilterNewObjectsForPackToGhosts( std::set< localIndex > const & obje
                                              localIndex_array & objectsToSend )
 {
 
-  ghostsToSend.move( LvArray::MemorySpace::CPU );
+  ghostsToSend.move( LvArray::MemorySpace::host );
   //TODO this needs to be inverted since the ghostToSend list should be much longer....
   // and the objectList is a searchable set.
   for( auto const index : objectList )
@@ -650,7 +650,7 @@ static void FilterModObjectsForPackToGhosts( std::set< localIndex > const & obje
                                              localIndex_array const & ghostsToSend,
                                              localIndex_array & objectsToSend )
 {
-  ghostsToSend.move( LvArray::MemorySpace::CPU );
+  ghostsToSend.move( LvArray::MemorySpace::host );
   for( localIndex a=0; a<ghostsToSend.size(); ++a )
   {
     if( objectList.count( ghostsToSend[a] ) > 0 )
@@ -907,7 +907,7 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
 
   if( newGhostNodes.size() > 0 )
   {
-    nodeGhostsToRecv.move( LvArray::MemorySpace::CPU );
+    nodeGhostsToRecv.move( LvArray::MemorySpace::host );
     for( localIndex a=0; a<newGhostNodes.size(); ++a )
     {
       nodeGhostsToRecv.emplace_back( newGhostNodes[a] );
@@ -916,7 +916,7 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
 
   if( newGhostEdges.size() > 0 )
   {
-    edgeGhostsToRecv.move( LvArray::MemorySpace::CPU );
+    edgeGhostsToRecv.move( LvArray::MemorySpace::host );
     for( localIndex a=0; a<newGhostEdges.size(); ++a )
     {
       edgeGhostsToRecv.emplace_back( newGhostEdges[a] );
@@ -925,7 +925,7 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
 
   if( newGhostFaces.size() > 0 )
   {
-    faceGhostsToRecv.move( LvArray::MemorySpace::CPU );
+    faceGhostsToRecv.move( LvArray::MemorySpace::host );
     for( localIndex a=0; a<newGhostFaces.size(); ++a )
     {
       faceGhostsToRecv.emplace_back( newGhostFaces[a] );
@@ -939,7 +939,7 @@ void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const 
 
     if( newGhostElemsData[er][esr].size() > 0 )
     {
-      elemGhostsToReceive.move( LvArray::MemorySpace::CPU );
+      elemGhostsToReceive.move( LvArray::MemorySpace::host );
 
       for( localIndex const & newElemIndex : newGhostElemsData[er][esr] )
       {
