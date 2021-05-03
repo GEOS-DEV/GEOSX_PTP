@@ -9,6 +9,7 @@
 #include "mesh/ElementRegionManager.hpp"
 #include "mesh/ExtrinsicMeshData.hpp"
 #include "mesh/mpiCommunications/CommunicationTools.hpp"
+#include "mesh/mpiCommunications/MPI_iCommData.hpp"
 
 
 namespace geosx
@@ -41,7 +42,7 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
   //   b) the modified objects to the owning ranks.
 
   // pack the buffers, and send the size of the buffers
-  MPI_iCommData commData;
+  MPI_iCommData commData( CommunicationTools::getInstance().getCommID() );
   commData.resize( neighbors.size() );
   for( unsigned int neighborIndex=0; neighborIndex<neighbors.size(); ++neighborIndex )
   {
@@ -50,11 +51,11 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
     packNewAndModifiedObjectsToOwningRanks( &neighbor,
                                             mesh,
                                             modifiedObjects,
-                                            commData.commID );
+                                            commData.commID() );
 
-    neighbor.mpiISendReceiveBufferSizes( commData.commID,
-                                         commData.mpiSizeSendBufferRequest[neighborIndex],
-                                         commData.mpiSizeRecvBufferRequest[neighborIndex],
+    neighbor.mpiISendReceiveBufferSizes( commData.commID(),
+                                         commData.mpiSendBufferSizeRequest( neighborIndex ),
+                                         commData.mpiRecvBufferSizeRequest( neighborIndex ),
                                          MPI_COMM_GEOSX );
 
   }
@@ -63,16 +64,16 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
   for( unsigned int count=0; count<neighbors.size(); ++count )
   {
     int neighborIndex;
-    MpiWrapper::waitAny( commData.size,
-                         commData.mpiSizeRecvBufferRequest.data(),
+    MpiWrapper::waitAny( commData.size(),
+                         commData.mpiRecvBufferSizeRequest(),
                          &neighborIndex,
-                         commData.mpiSizeRecvBufferStatus.data() );
+                         commData.mpiRecvBufferSizeStatus() );
 
     NeighborCommunicator & neighbor = neighbors[neighborIndex];
 
-    neighbor.mpiISendReceiveBuffers( commData.commID,
-                                     commData.mpiSendBufferRequest[neighborIndex],
-                                     commData.mpiRecvBufferRequest[neighborIndex],
+    neighbor.mpiISendReceiveBuffers( commData.commID(),
+                                     commData.mpiSendBufferRequest( neighborIndex ),
+                                     commData.mpiRecvBufferRequest( neighborIndex ),
                                      MPI_COMM_GEOSX );
   }
 
@@ -83,23 +84,23 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
     int neighborIndex = count;
     if( mpiCommOrder == 0 )
     {
-      MpiWrapper::waitAny( commData.size,
-                           commData.mpiRecvBufferRequest.data(),
+      MpiWrapper::waitAny( commData.size(),
+                           commData.mpiRecvBufferRequest(),
                            &neighborIndex,
-                           commData.mpiRecvBufferStatus.data() );
+                           commData.mpiRecvBufferStatus() );
     }
     // Unpack buffers in set ordering for integration testing
     else
     {
-      MpiWrapper::wait( commData.mpiRecvBufferRequest.data() + count,
-                        commData.mpiRecvBufferStatus.data() + count );
+      MpiWrapper::wait( commData.mpiRecvBufferRequest() + count,
+                        commData.mpiRecvBufferStatus() + count );
     }
 
     NeighborCommunicator & neighbor = neighbors[neighborIndex];
 
     unpackNewAndModifiedObjectsOnOwningRanks( &neighbor,
                                               mesh,
-                                              commData.commID,
+                                              commData.commID(),
                                               receivedObjects );
   }
 
@@ -115,13 +116,13 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
     subRegion.inheritGhostRankFromParentFace( faceManager, receivedObjects.newElements[{er, esr}] );
   } );
 
-  MpiWrapper::waitAll( commData.size,
-                       commData.mpiSizeSendBufferRequest.data(),
-                       commData.mpiSizeSendBufferStatus.data() );
+  MpiWrapper::waitAll( commData.size(),
+                       commData.mpiSendBufferSizeRequest(),
+                       commData.mpiSendBufferSizeStatus() );
 
-  MpiWrapper::waitAll( commData.size,
-                       commData.mpiSendBufferRequest.data(),
-                       commData.mpiSizeSendBufferStatus.data() );
+  MpiWrapper::waitAll( commData.size(),
+                       commData.mpiSendBufferRequest(),
+                       commData.mpiSendBufferSizeStatus() );
 
   modifiedObjects.insert( receivedObjects );
 
@@ -133,20 +134,20 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
 
 
 
-  MPI_iCommData commData2;
+  MPI_iCommData commData2( CommunicationTools::getInstance().getCommID() );
   commData2.resize( neighbors.size());
   for( unsigned int neighborIndex=0; neighborIndex<neighbors.size(); ++neighborIndex )
   {
     NeighborCommunicator & neighbor = neighbors[neighborIndex];
 
     packNewModifiedObjectsToGhosts( &neighbor,
-                                    commData2.commID,
+                                    commData2.commID(),
                                     mesh,
                                     modifiedObjects );
 
-    neighbor.mpiISendReceiveBufferSizes( commData2.commID,
-                                         commData2.mpiSizeSendBufferRequest[neighborIndex],
-                                         commData2.mpiSizeRecvBufferRequest[neighborIndex],
+    neighbor.mpiISendReceiveBufferSizes( commData2.commID(),
+                                         commData2.mpiSendBufferSizeRequest( neighborIndex ),
+                                         commData2.mpiRecvBufferSizeRequest( neighborIndex ),
                                          MPI_COMM_GEOSX );
 
   }
@@ -154,16 +155,16 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
   for( unsigned int count=0; count<neighbors.size(); ++count )
   {
     int neighborIndex;
-    MpiWrapper::waitAny( commData2.size,
-                         commData2.mpiSizeRecvBufferRequest.data(),
+    MpiWrapper::waitAny( commData2.size(),
+                         commData2.mpiRecvBufferSizeRequest(),
                          &neighborIndex,
-                         commData2.mpiSizeRecvBufferStatus.data() );
+                         commData2.mpiRecvBufferSizeStatus() );
 
     NeighborCommunicator & neighbor = neighbors[neighborIndex];
 
-    neighbor.mpiISendReceiveBuffers( commData2.commID,
-                                     commData2.mpiSendBufferRequest[neighborIndex],
-                                     commData2.mpiRecvBufferRequest[neighborIndex],
+    neighbor.mpiISendReceiveBuffers( commData2.commID(),
+                                     commData2.mpiSendBufferRequest( neighborIndex ),
+                                     commData2.mpiRecvBufferRequest( neighborIndex ),
                                      MPI_COMM_GEOSX );
   }
 
@@ -174,21 +175,21 @@ void ParallelTopologyChange::synchronizeTopologyChange( MeshLevel * const mesh,
     int neighborIndex = count;
     if( mpiCommOrder == 0 )
     {
-      MpiWrapper::waitAny( commData2.size,
-                           commData2.mpiRecvBufferRequest.data(),
+      MpiWrapper::waitAny( commData2.size(),
+                           commData2.mpiRecvBufferRequest(),
                            &neighborIndex,
-                           commData2.mpiRecvBufferStatus.data() );
+                           commData2.mpiRecvBufferStatus() );
     }
     else
     {
-      MpiWrapper::wait( commData2.mpiRecvBufferRequest.data() + count,
-                        commData2.mpiRecvBufferStatus.data() + count );
+      MpiWrapper::wait( commData2.mpiRecvBufferRequest() + count,
+                        commData2.mpiRecvBufferStatus() + count );
     }
 
     NeighborCommunicator & neighbor = neighbors[neighborIndex];
 
 
-    unpackNewModToGhosts( &neighbor, commData2.commID, mesh, receivedObjects );
+    unpackNewModToGhosts( &neighbor, commData2.commID(), mesh, receivedObjects );
   }
 
   modifiedObjects.insert( receivedObjects );
@@ -818,7 +819,6 @@ void ParallelTopologyChange::packNewModifiedObjectsToGhosts( NeighborCommunicato
   GEOSX_ERROR_IF( bufferSize != packedSize, "Allocated Buffer Size is not equal to packed buffer size" );
 
   waitAllDeviceEvents( packEvents );
-  neighbor->mpiISendReceive( commID, MPI_COMM_GEOSX );
 }
 
 void ParallelTopologyChange::unpackNewModToGhosts( NeighborCommunicator * const neighbor,
